@@ -36,7 +36,7 @@
 #include <iostream>
 
 #ifdef _WITH_DRAMSIM3_ //was compiled with dramsim3
-//#include "memory_system.h"
+#include "memory_system.h"
 #include "dramsim3.h"
 
 using namespace std;

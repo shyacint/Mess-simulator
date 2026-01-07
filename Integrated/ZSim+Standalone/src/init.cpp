@@ -409,10 +409,8 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
     else if (type == "Mess") {
         double frequencyGHz = ((double)frequency)/1000;
         string curveAddress = config.get<const char*>("sys.mem.curveAddress");
-        uint32_t curveWindowSize = config.get<uint32_t>("sys.mem.curveWindowSize", 1000);
-        // add frequency to third argument
+            // add frequency to third argument
         mem = new WeaveMessMemCtrl(curveAddress, curveWindowSize, frequencyGHz, domain, name);
-        // panic("Invalid memory controller type %s", type.c_str());
     } else {
         panic("Invalid memory controller type %s", type.c_str());
     } 

@@ -150,6 +150,8 @@ def buildSim(cppFlags, dir, type, pgo=None):
         env["LINKFLAGS"] += " -Wl,-R" + DRAMSIM3PATH
         env["PINLIBPATH"] += [DRAMSIM3PATH]
         env["CPPPATH"] += [DRAMSIM3PATH + "/src"]
+        env["CPPPATH"] += [DRAMSIM3PATH + "/ext/headers"]
+        env["CPPPATH"] += [DRAMSIM3PATH + "/ext/headers/inih"]
         env["PINLIBS"] += ["dramsim3"]
         env["CPPFLAGS"] += " -D_WITH_DRAMSIM3_=1 "
 
@@ -172,6 +174,7 @@ def buildSim(cppFlags, dir, type, pgo=None):
     # BSC code code for HDF to solve some compile errors on MareNostrum 3 clusters.
 
     env["PINLIBS"] += ["hdf5", "hdf5_hl"]
+    
     if "HDF5_HOME" in os.environ:
         # HDF5
         #env['CPPPATH'] += [' -I' + str(os.environ['HDF5_HOME']) + '/include' + ' -I' +  str(os.environ['LIBCONFIGDIR'])]
@@ -181,6 +184,10 @@ def buildSim(cppFlags, dir, type, pgo=None):
         env.Append(LINKFLAGS = ' -L' + joinpath(os.environ['LIBCONFIG_HOME'], 'lib'))
         #env.Append(LINKFLAGS = ' -Wl,-R' + joinpath(os.environ['LIBCONFIG_HOME'], 'lib'))
         #env.Append(LINKFLAGS = ' -Wl,-R' + joinpath(os.environ['HDF5_HOME'], 'lib'))
+    else:
+        # fallback to system default serial HDF5
+        env.Append(CPPFLAGS = ' -I/usr/include/hdf5/serial')
+        env.Append(LINKFLAGS = ' -L/usr/lib/x86_64-linux-gnu/hdf5/serial')
 
 
 #shangly defined hdf as following

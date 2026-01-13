@@ -1,9 +1,9 @@
-Running on: h0.mess-verif.s25-18-742.narwhal.pdl.cmu.edu
-Start time: Wed Jan  7 13:58:18 2026
-Heartbeat time: Wed Jan  7 13:58:21 2026
+Running on: h0.zoo-cxl.s25-18-742.narwhal.pdl.cmu.edu
+Start time: Mon Jan 12 20:58:52 2026
+Heartbeat time: Mon Jan 12 20:58:55 2026
 Stats since start:
- 4120 phases
- 4120000 cycles
- 1373333 cycles/s
-Stats since last heartbeat (1767819501s):
+ 3990 phases
+ 3990000 cycles
+ 1330000 cycles/s
+Stats since last heartbeat (1768276735s):
  0 cycles/s

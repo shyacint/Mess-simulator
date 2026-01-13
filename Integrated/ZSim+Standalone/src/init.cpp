@@ -401,7 +401,7 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
     } 
     // else if (type == "bw-lat-cruves") {
     //     string curveAddress = config.get<const char*>("sys.mem.curveAddress");
-    //     uint32_t curveWindowSize = config.get<uint32_t>("sys.mem.curveWindowSize", 1000);
+    // uint32_t curveWindowSize = config.get<uint32_t>("sys.mem.curveWindowSize", 1000);
     //     double MaxTheoreticalBW = config.get<double>("sys.mem.MaxTheoreticalBW", 128);
     //     mem = new WeaveBwLatMemCtrl(curveAddress, curveWindowSize, MaxTheoreticalBW, domain, name);
     //     // panic("Invalid memory controller type %s", type.c_str());
@@ -409,6 +409,7 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
     else if (type == "Mess") {
         double frequencyGHz = ((double)frequency)/1000;
         string curveAddress = config.get<const char*>("sys.mem.curveAddress");
+        uint32_t curveWindowSize = config.get<uint32_t>("sys.mem.curveWindowSize", 1000);
             // add frequency to third argument
         mem = new WeaveMessMemCtrl(curveAddress, curveWindowSize, frequencyGHz, domain, name);
     } else {

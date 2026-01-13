@@ -2,6 +2,8 @@ original_dir=$(pwd)
 
 #todo: add code to setup env variables for dramsim3
 
+
+
 echo "Installing Linux programs..."
 if [[ ! -f "$LINUX_PROGRAMS_FLAG_FILE" ]]; then
     sudo apt-get -y update
@@ -16,6 +18,29 @@ if [[ ! -f "$LINUX_PROGRAMS_FLAG_FILE" ]]; then
 else
     echo "Linux programs are already installed"
 fi
+
+echo '--------------------------------------------------------------------------------'
+
+echo "Setting up DRAMSim3 (needed for build)"
+if [[ -z "$DRAMSIM3PATH" ]]; then
+    dramsim3_dir="$(pwd)/DRAMSim3"
+
+    if [[ ! -d "$dramsim3_dir" ]]; then
+        echo "$dramsim3_dir is missing!"
+        exit 1
+    fi
+
+    export DRAMSIM3PATH="$dramsim3_dir"
+    cd "$DRAMSIM3PATH"
+    mkdir -p build
+    cd build
+    cmake ..
+    make -j$(nproc)
+
+else
+    echo "DRAMSim3 already installed. DRAMSIM3PATH=$DRAMSIM3PATH"
+fi
+
 
 echo '--------------------------------------------------------------------------------'
 

@@ -41,6 +41,7 @@ add_library(dramsim3 SHARED
     src/memory_system.cc
 )
 target_compile_definitions(dramsim3 PUBLIC _GLIBCXX_USE_CXX11_ABI=0)
+target_compile_options(dramsim3 PUBLIC -D_GLIBCXX_USE_CXX11_ABI=0)
 
 
 if (THERMAL)

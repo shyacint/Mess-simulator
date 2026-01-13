@@ -37,6 +37,18 @@ def parse_args():
         default= -1,
         help="Set the maximum number of inst to simulate (multiple of 1k inst)"
     )
+    parser.add_argument(
+        "--app-range",
+        type=str,
+        default=None,
+        help="Range of apps to run (e.g., '00-10' runs apps 00_ through 10_)"
+    )
+    parser.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=-1,
+        help="Maximum number of concurrent simulations (default: unlimited)"
+    )
     return parser.parse_args()
 
 
@@ -45,12 +57,40 @@ def assert_file_exists(filePath):
         raise FileNotFoundError(f"File {filePath} does not exist. file=__file__, line={sys._getframe().f_lineno}, function={sys._getframe().f_code.co_name}, caller={sys._getframe().f_back.f_code.co_name}")
 
 
+def parse_app_range(range_str):
+    if not range_str:
+        return None
+    
+    parts = range_str.split('-')
+    if len(parts) != 2:
+        raise ValueError(f"Invalid app range format: {range_str}. Expected format: '00-10'")
+    
+    start = int(parts[0])
+    end = int(parts[1])
+    
+    if start > end:
+        raise ValueError(f"Invalid app range: start ({start}) > end ({end})")
+    
+    return (start, end)
+
+
+def app_in_range(app_name, app_range):
+    if not app_range:
+        return True
+    
+    match = DIR_PATTERN.match(app_name)
+    if not match:
+        return False
+    
+    app_num = int(app_name[:2])
+    start, end = app_range
+    return start <= app_num <= end
+
 
 def create_exe_cmd(dir_path, dataset):
     run_script = os.path.join(dir_path, "run.sh")
     
     if os.path.exists(run_script):
-        # print(f"Run Script Path: {run_script}")
         
         run_script_dict = {}
         # loop through line in run.sh
@@ -63,14 +103,12 @@ def create_exe_cmd(dir_path, dataset):
                     resolved_args = []
                     for arg in val.split(" "):
                         full_arg_path = os.path.join(dir_path, arg)
-                        print(full_arg_path)
                         
                         if os.path.isfile(full_arg_path) or os.path.isdir(full_arg_path):
-                            original_dir =os.getcwd()
+                            original_dir = os.getcwd()
                             os.chdir(dir_path)
                             abs_path = os.path.abspath(arg)
                             os.chdir(original_dir)
-                            print(abs_path)
                             resolved_args.append(abs_path)
                         else:
                             resolved_args.append(arg)
@@ -115,6 +153,9 @@ def main():
     run_dir = os.path.realpath(run_dir)
     os.chdir(run_dir)
     
+    # Parse app range if provided
+    app_range = parse_app_range(args.app_range)
+    
     # clean up for the csv
     datasets = args.dataset.split(",")
     app_types = args.app_type.split(",")
@@ -124,19 +165,25 @@ def main():
     for app in sorted(os.listdir(apps_dir)):
         if not DIR_PATTERN.match(app):
             continue
+        
+        # Skip apps outside the specified range
+        if not app_in_range(app, app_range):
+            continue
 
         full_path = os.path.join(apps_dir, app)
 
         if not os.path.isdir(full_path):
             continue
 
-        print(full_path)     
+        print(f"Processing {app}...")
+        
         for dataset in datasets:
             for app_type in app_types:
                 run_name = f"{app}_{app_type}_{dataset}"
                 
-                os.makedirs(run_name, exist_ok=True)
-                os.chdir(run_name)
+                # Create absolute path for run directory
+                run_path = os.path.join(run_dir, run_name)
+                os.makedirs(run_path, exist_ok=True)
                 
                 cfg_file = f"{cfgs_dir}/orca_cxl.cfg"
                 assert_file_exists(cfg_file)
@@ -150,14 +197,33 @@ def main():
                 new_cmd = process_directory(full_path, dataset, app_type)
                 config = config.replace('<enter command>', f"{new_cmd}")
                 
-                with open("run.cfg", "w") as f: f.write(config)
+                # Write config to the run directory
+                cfg_path = os.path.join(run_path, "run.cfg")
+                with open(cfg_path, "w") as f: f.write(config)
                 
-                process = subprocess.Popen([zsim_binary, "run.cfg"], stdout=open("log.txt","w"), stderr=subprocess.STDOUT)
+                # Launch process with explicit cwd
+                log_path = os.path.join(run_path, "log.txt")
+                process = subprocess.Popen(
+                    [zsim_binary, cfg_path], 
+                    stdout=open(log_path, "w"), 
+                    stderr=subprocess.STDOUT,
+                    cwd=run_path
+                )
                 processes.append(process)
-                os.chdir("..")
                 
-        print(f"Submitted all runs for {app}. Waiting for completion...\n")
-        
+                # Wait for batch if max concurrent limit is set
+                if args.max_concurrent > 0 and len(processes) >= args.max_concurrent:
+                    print(f"Reached max concurrent limit ({args.max_concurrent}). Waiting for batch to complete...")
+                    for p in processes:
+                        p.wait()
+                        if p.returncode != 0:
+                            print(f"Warning: Process failed with return code {p.returncode}")
+                    processes = []
+                
+        print(f"Submitted all runs for {app}.\n")
+    
+    # Wait for remaining processes
+    print(f"Waiting for remaining {len(processes)} processes to complete...")
     for process in processes:
         process.wait()
         assert process.returncode == 0

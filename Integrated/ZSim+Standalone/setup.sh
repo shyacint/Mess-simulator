@@ -21,29 +21,6 @@ fi
 
 echo '--------------------------------------------------------------------------------'
 
-echo "Setting up DRAMSim3 (needed for build)"
-if [[ -z "$DRAMSIM3PATH" ]]; then
-    dramsim3_dir="$(pwd)/DRAMSim3"
-
-    if [[ ! -d "$dramsim3_dir" ]]; then
-        echo "$dramsim3_dir is missing!"
-        exit 1
-    fi
-
-    export DRAMSIM3PATH="$dramsim3_dir"
-    cd "$DRAMSIM3PATH"
-    mkdir -p build
-    cd build
-    cmake ..
-    make -j$(nproc)
-
-else
-    echo "DRAMSim3 already installed. DRAMSIM3PATH=$DRAMSIM3PATH"
-fi
-
-
-echo '--------------------------------------------------------------------------------'
-
 echo "Installing Intel Pin..."
 if [[ -z "$PINPATH" ]]; then
     pin_url="https://software.intel.com/sites/landingpage/pintool/downloads/pin-2.14-71313-gcc.4.4.7-linux.tar.gz"
@@ -66,3 +43,39 @@ else
 fi
 
 echo '--------------------------------------------------------------------------------'
+
+echo "Setting up DRAMSim3 (needed for build)"
+if [[ -z "$DRAMSIM3PATH" ]]; then
+    dramsim3_dir="$(pwd)/DRAMSim3"
+
+    if [[ ! -d "$dramsim3_dir" ]]; then
+        echo "$dramsim3_dir is missing!"
+        exit 1
+    fi
+
+    export DRAMSIM3PATH="$dramsim3_dir"
+    cd "$DRAMSIM3PATH"
+    mkdir -p build
+    cd build
+    cmake ..
+    make -j$(nproc)
+
+else
+    echo "DRAMSim3 already installed. DRAMSIM3PATH=$DRAMSIM3PATH"
+fi
+
+echo '--------------------------------------------------------------------------------'
+
+echo "Building ZSim+Standalone Mess"
+if [[ ! -z "$DRAMSIM3PATH" && ! -z "$PINPATH" ]]; then
+    scons -c
+    scons -j$(nproc)
+else
+    echo "Missing dependencies:"
+    echo "  DRAMSIM3PATH=$DRAMSIM3PATH"
+    echo "  PINPATH=$PINPATH"
+    exit 1
+fi
+
+echo '--------------------------------------------------------------------------------'
+

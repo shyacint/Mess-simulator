@@ -1,8 +1,7 @@
 original_dir=$(pwd)
 
-#todo: add code to setup env variables for dramsim3
 
-
+#TODO: add could to clone zoo repo
 
 echo "Installing Linux programs..."
 if [[ ! -f "$LINUX_PROGRAMS_FLAG_FILE" ]]; then
@@ -46,7 +45,7 @@ echo '--------------------------------------------------------------------------
 
 echo "Setting up DRAMSim3 (needed for build)"
 if [[ -z "$DRAMSIM3PATH" ]]; then
-    dramsim3_dir="$(pwd)/DRAMSim3"
+    dramsim3_dir="$(pwd)/DRAMsim3"
 
     if [[ ! -d "$dramsim3_dir" ]]; then
         echo "$dramsim3_dir is missing!"
@@ -68,6 +67,7 @@ echo '--------------------------------------------------------------------------
 
 echo "Building ZSim+Standalone Mess"
 if [[ ! -z "$DRAMSIM3PATH" && ! -z "$PINPATH" ]]; then
+    cd "${original_dir}"
     scons -c
     scons -j$(nproc)
 else

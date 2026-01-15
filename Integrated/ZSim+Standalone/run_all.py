@@ -105,10 +105,7 @@ def create_exe_cmd(dir_path, dataset):
                         full_arg_path = os.path.join(dir_path, arg)
                         
                         if os.path.isfile(full_arg_path) or os.path.isdir(full_arg_path):
-                            original_dir = os.getcwd()
-                            os.chdir(dir_path)
-                            abs_path = os.path.abspath(arg)
-                            os.chdir(original_dir)
+                            abs_path = os.path.realpath(full_arg_path)
                             resolved_args.append(abs_path)
                         else:
                             resolved_args.append(arg)
@@ -142,6 +139,7 @@ def main():
         raise NotADirectoryError(f"{apps_dir} is not a valid directory")
 
     #TODO: add code that will build all zoo applications
+    
     zsim_binary = "build/opt/zsim"
     assert_file_exists(zsim_binary)
     zsim_binary = os.path.realpath(zsim_binary)

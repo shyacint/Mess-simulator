@@ -1,7 +1,7 @@
-original_dir=$(pwd)
+ORIGINAL_DIR=$(pwd)
+HOME_DIR="/mnt/ssd/"
+ZOO_GITHUB="git@github.com:bakhshalipour/zoo-pre-release.git"
 
-
-#TODO: add could to clone zoo repo
 
 echo "Installing Linux programs..."
 if [[ ! -f "$LINUX_PROGRAMS_FLAG_FILE" ]]; then
@@ -16,6 +16,28 @@ if [[ ! -f "$LINUX_PROGRAMS_FLAG_FILE" ]]; then
     sudo apt-get install -y "${packages[@]}"
 else
     echo "Linux programs are already installed"
+fi
+
+echo '--------------------------------------------------------------------------------'
+
+echo "Cloning Zoo Memory Benchmark - dataset install will take roughly an hour"
+if [[ -z "$ZOOPATH" ]]; then
+    zoo_dir="${HOME_DIR}/zoo-pre-release"
+    git clone -b cxl-zsim "$ZOO_GITHUB" "$zoo_dir"
+
+    if [[ ! -d "$zoo_dir" ]]; then
+        echo "$zoo_dir is missing! Likely an error while cloning the repo"
+        exit 1
+    fi
+
+    echo "export ZOOPATH=$(readlink -f "$zoo_dir")" >> "$HOME/.bashrc"
+    echo "Run the following command to apply changes across all sessions."
+    echo "source ~/.bashrc"
+
+else
+    echo "Zoo Memory Benchmark already installed. ZOOPATH=$ZOOPATH"
+    cd "$ZOOPATH" || exit 1
+    ./scripts/setup
 fi
 
 echo '--------------------------------------------------------------------------------'
@@ -52,22 +74,24 @@ if [[ -z "$DRAMSIM3PATH" ]]; then
         exit 1
     fi
 
-    export DRAMSIM3PATH="$dramsim3_dir"
+    echo "export DRAMSIM3PATH=$(readlink -f $dramsim3_dir)" >>$HOME/.bashrc
+    echo "Run the following command to apply changes across all sessions."
+    echo "source ~/.bashrc"
+
+else
+    echo "DRAMSim3 already installed. DRAMSIM3PATH=$DRAMSIM3PATH"
     cd "$DRAMSIM3PATH"
     mkdir -p build
     cd build
     cmake ..
     make -j$(nproc)
-
-else
-    echo "DRAMSim3 already installed. DRAMSIM3PATH=$DRAMSIM3PATH"
 fi
 
 echo '--------------------------------------------------------------------------------'
 
 echo "Building ZSim+Standalone Mess"
 if [[ ! -z "$DRAMSIM3PATH" && ! -z "$PINPATH" ]]; then
-    cd "${original_dir}"
+    cd "${ORIGINAL_DIR}"
     scons -c
     scons -j$(nproc)
 else

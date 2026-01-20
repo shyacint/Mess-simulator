@@ -98,6 +98,6 @@ if [[ -z "$ZOOPATH" ]]; then
 else
     echo "Zoo Memory Benchmark already installed. ZOOPATH=$ZOOPATH"
     cd "$ZOOPATH" || exit 1
-    ./scripts/setup.sh
+    "$ZOOPATH/scripts/setup.sh"
 fi
 

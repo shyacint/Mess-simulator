@@ -81,9 +81,10 @@ fi
 
 echo '--------------------------------------------------------------------------------'
 
+#TODO: clean up this flow 
 echo "Cloning Zoo Memory Benchmark - dataset install will take roughly an hour"
+zoo_dir="${HOME_DIR}/zoo-pre-release"
 if [[ -z "$ZOOPATH" ]]; then
-    zoo_dir="${HOME_DIR}/zoo-pre-release"
     git clone -b cxl-zsim "$ZOO_GITHUB" "$zoo_dir"
 
     if [[ ! -d "$zoo_dir" ]]; then
@@ -96,6 +97,11 @@ if [[ -z "$ZOOPATH" ]]; then
     echo "source ~/.bashrc"
 
 else
+    if [[ ! -d "$ZOOPATH" ]]; then
+        echo "$zoo_dir is missing! Will retry cloning the repo"
+        git clone -b cxl-zsim "$ZOO_GITHUB" "$zoo_dir"
+        exit 1
+    fi  
     echo "Zoo Memory Benchmark already installed. ZOOPATH=$ZOOPATH"
     cd "$ZOOPATH" || exit 1
     "$ZOOPATH/scripts/setup.sh"

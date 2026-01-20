@@ -151,6 +151,7 @@ def main():
     assert_file_exists(zsim_binary)
     zsim_binary = os.path.realpath(zsim_binary)
 
+    proc_cfg = os.path.basename(args.cfg)
     cfgs_dir = os.path.realpath("tests/")
     date = datetime.now().strftime('%Y%m%d_%H%M%S')
     run_dir = f"runs.{date}"
@@ -190,7 +191,7 @@ def main():
                 run_path = os.path.join(run_dir, run_name)
                 os.makedirs(run_path, exist_ok=True)
                 
-                cfg_file = f"{cfgs_dir}/orca_cxl.cfg"
+                cfg_file = f"{cfgs_dir}/{proc_cfg}"
                 assert_file_exists(cfg_file)
                 
                 with open(cfg_file, "r") as f: 

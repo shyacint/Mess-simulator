@@ -20,28 +20,6 @@ fi
 
 echo '--------------------------------------------------------------------------------'
 
-echo "Cloning Zoo Memory Benchmark - dataset install will take roughly an hour"
-if [[ -z "$ZOOPATH" ]]; then
-    zoo_dir="${HOME_DIR}/zoo-pre-release"
-    git clone -b cxl-zsim "$ZOO_GITHUB" "$zoo_dir"
-
-    if [[ ! -d "$zoo_dir" ]]; then
-        echo "$zoo_dir is missing! Likely an error while cloning the repo"
-        exit 1
-    fi
-
-    echo "export ZOOPATH=$(readlink -f "$zoo_dir")" >> "$HOME/.bashrc"
-    echo "Run the following command to apply changes across all sessions."
-    echo "source ~/.bashrc"
-
-else
-    echo "Zoo Memory Benchmark already installed. ZOOPATH=$ZOOPATH"
-    cd "$ZOOPATH" || exit 1
-    ./scripts/setup
-fi
-
-echo '--------------------------------------------------------------------------------'
-
 echo "Installing Intel Pin..."
 if [[ -z "$PINPATH" ]]; then
     pin_url="https://software.intel.com/sites/landingpage/pintool/downloads/pin-2.14-71313-gcc.4.4.7-linux.tar.gz"
@@ -102,4 +80,24 @@ else
 fi
 
 echo '--------------------------------------------------------------------------------'
+
+echo "Cloning Zoo Memory Benchmark - dataset install will take roughly an hour"
+if [[ -z "$ZOOPATH" ]]; then
+    zoo_dir="${HOME_DIR}/zoo-pre-release"
+    git clone -b cxl-zsim "$ZOO_GITHUB" "$zoo_dir"
+
+    if [[ ! -d "$zoo_dir" ]]; then
+        echo "$zoo_dir is missing! Likely an error while cloning the repo"
+        exit 1
+    fi
+
+    echo "export ZOOPATH=$(readlink -f "$zoo_dir")" >> "$HOME/.bashrc"
+    echo "Run the following command to apply changes across all sessions."
+    echo "source ~/.bashrc"
+
+else
+    echo "Zoo Memory Benchmark already installed. ZOOPATH=$ZOOPATH"
+    cd "$ZOOPATH" || exit 1
+    ./scripts/setup.sh
+fi
 

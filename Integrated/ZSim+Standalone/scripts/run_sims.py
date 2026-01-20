@@ -17,19 +17,26 @@ def parse_args():
         description="Process directories prefixed with ##_ (i.e 01_passgen) and run the series and parallel executables"
     )
     parser.add_argument(
-    "--dataset",
-    default="koala",
-    help="Comma-separated list (e.g. koala,panda)"
+        "--cfg",
+        required=True,
+        type=str,
+        help="ZSim simulation configuration(cfg) file"
+    )
+    parser.add_argument(
+        "--apps-dir",
+        required=True,
+        help="Workload applications directory to scan (default: current working directory)"
+    )
+    parser.add_argument(
+        "--dataset",
+        required=True,
+        default="koala",
+        help="Comma-separated list (e.g. koala,panda)"
     )
     parser.add_argument(
         "--app-type",
         default="serial",
         help="Comma-separated list (e.g. serial,parallel)"
-    )
-    parser.add_argument(
-        "--apps-dir",
-        default=os.getcwd(),
-        help="Workload applications directory to scan (default: current working directory)"
     )
     parser.add_argument(
         "--quick-run",

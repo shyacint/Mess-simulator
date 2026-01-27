@@ -45,10 +45,10 @@ def parse_args():
         help="Set the maximum number of inst to simulate (multiple of 1k inst)"
     )
     parser.add_argument(
-        "--app-range",
+        "--apps",
         type=str,
         default=None,
-        help="Range of apps to run (e.g., '00-10' runs apps 00_ through 10_)"
+        help="Apps to run. Supports ranges (00-10), lists (01,05,12), or mixed (01-05,08,12-15)"
     )
     parser.add_argument(
         "--max-concurrent",
@@ -64,25 +64,65 @@ def assert_file_exists(filePath):
         raise FileNotFoundError(f"File {filePath} does not exist. file=__file__, line={sys._getframe().f_lineno}, function={sys._getframe().f_code.co_name}, caller={sys._getframe().f_back.f_code.co_name}")
 
 
-def parse_app_range(range_str):
-    if not range_str:
+def parse_apps(apps_str):
+    """
+    Parse app specification into a set of app numbers.
+    Supports:
+    - Ranges: '00-10' 
+    - Lists: '01,05,12'
+    - Mixed: '01-05,08,12-15'
+    
+    Returns a set of integers representing app numbers to run, or None if not specified.
+    """
+    if not apps_str:
         return None
     
-    parts = range_str.split('-')
-    if len(parts) != 2:
-        raise ValueError(f"Invalid app range format: {range_str}. Expected format: '00-10'")
+    app_numbers = set()
     
-    start = int(parts[0])
-    end = int(parts[1])
+    # Split by comma to get individual parts
+    parts = apps_str.split(',')
     
-    if start > end:
-        raise ValueError(f"Invalid app range: start ({start}) > end ({end})")
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+            
+        # Check if it's a range (contains dash)
+        if '-' in part:
+            range_parts = part.split('-')
+            if len(range_parts) != 2:
+                raise ValueError(f"Invalid range format: {part}. Expected format: '00-10'")
+            
+            try:
+                start = int(range_parts[0])
+                end = int(range_parts[1])
+            except ValueError as e:
+                raise ValueError(f"Invalid range values in: {part}") from e
+            
+            if start > end:
+                raise ValueError(f"Invalid range: start ({start}) > end ({end}) in {part}")
+            
+            if start < 0 or end > 99:
+                raise ValueError(f"App numbers must be between 0 and 99: {part}")
+            
+            # Add all numbers in the range
+            app_numbers.update(range(start, end + 1))
+        else:
+            # Single app number
+            try:
+                app_num = int(part)
+                if app_num < 0 or app_num > 99:
+                    raise ValueError(f"App number must be between 0 and 99: {app_num}")
+                app_numbers.add(app_num)
+            except ValueError as e:
+                raise ValueError(f"Invalid app number: {part}") from e
     
-    return (start, end)
+    return app_numbers if app_numbers else None
 
 
-def app_in_range(app_name, app_range):
-    if not app_range:
+def app_should_run(app_name, app_numbers):
+    """Check if app should run based on the parsed app numbers set."""
+    if not app_numbers:
         return True
     
     match = DIR_PATTERN.match(app_name)
@@ -90,8 +130,7 @@ def app_in_range(app_name, app_range):
         return False
     
     app_num = int(app_name[:2])
-    start, end = app_range
-    return start <= app_num <= end
+    return app_num in app_numbers
 
 
 def create_exe_cmd(dir_path, dataset):
@@ -159,8 +198,8 @@ def main():
     run_dir = os.path.realpath(run_dir)
     os.chdir(run_dir)
     
-    # Parse app range if provided
-    app_range = parse_app_range(args.app_range)
+    # Parse app specification
+    app_numbers = parse_apps(args.apps)
     
     # clean up for the csv
     datasets = args.dataset.split(",")
@@ -172,8 +211,8 @@ def main():
         if not DIR_PATTERN.match(app):
             continue
         
-        # Skip apps outside the specified range
-        if not app_in_range(app, app_range):
+        # Check if this app should run
+        if not app_should_run(app, app_numbers):
             continue
 
         full_path = os.path.join(apps_dir, app)

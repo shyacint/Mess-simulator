@@ -10,7 +10,7 @@ if [[ ! -f "$LINUX_PROGRAMS_FLAG_FILE" ]]; then
 
     packages=(
         build-essential scons libconfig-dev libconfig++-dev
-        libhdf5-dev libelf-dev 
+        libhdf5-dev libelf-dev python3.10-venv
     )
 
     sudo apt-get install -y "${packages[@]}"

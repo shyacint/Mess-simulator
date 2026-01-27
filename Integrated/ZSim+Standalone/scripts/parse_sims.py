@@ -68,7 +68,7 @@ def extract_stats(h5_path, freq_ghz=2.4):
             start_idx = int(num_samps * 0.25)
             final_idx = int(num_samps * 0.75)
             if start_idx >= final_idx:
-                raise Exception("Number of samples is suspiciously sample for zoo applications")
+                raise Exception("Number of samples is suspiciously low for zoo applications")
             
             samp_start = dset[start_idx]
             samp_final = dset[final_idx]

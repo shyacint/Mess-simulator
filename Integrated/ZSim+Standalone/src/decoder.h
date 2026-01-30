@@ -66,13 +66,13 @@
 // Stages --- more or less matched to Westmere, but have not seen detailed pipe diagrams anywhare
 #define FETCH_STAGE 1
 #define DECODE_STAGE 4  // NOTE: Decoder adds predecode delays to decode
-#define ISSUE_STAGE 7
-#define DISPATCH_STAGE 13  // RAT + ROB + RS, each is easily 2 cycles
+#define ISSUE_STAGE 2
+#define DISPATCH_STAGE 6  // RAT + ROB + RS, each is easily 2 cycles
 
 #define L1D_LAT 4  // fixed, and FilterCache does not include L1 delay
-#define FETCH_BYTES_PER_CYCLE 32	//Just like SandyBridge. intel manual says L1 has 2x16, every other is 32, uop cache effect is increasing this to 32 bytes
-#define ISSUES_PER_CYCLE (6)	// allocation queue up from 4 (https://en.wikichip.org/wiki/intel/microarchitectures/skylake_(client)#Instruction_Queue_.26_MOP-Fusion) 
-#define RF_READS_PER_CYCLE 348 // RF = Register File, According to Agner, is almost unlimited now. Matching 180 int + 168 fp registers.
+#define FETCH_BYTES_PER_CYCLE 16	//Just like SandyBridge. intel manual says L1 has 2x16, every other is 32, uop cache effect is increasing this to 32 bytes
+#define ISSUES_PER_CYCLE (4)	// allocation queue up from 4 (https://en.wikichip.org/wiki/intel/microarchitectures/skylake_(client)#Instruction_Queue_.26_MOP-Fusion) 
+#define RF_READS_PER_CYCLE 336 // RF = Register File, According to Agner, is almost unlimited now. Matching 180 int + 168 fp registers.
 
 
 

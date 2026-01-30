@@ -463,7 +463,7 @@ class OOOCore : public Core {
         //NOTE: We do not model the 10-entry fill buffer here; the weave model should take care
         //to not overlap more than 10 misses.
         ReorderBuffer<72, 4> loadQueue; //based on  https://en.wikichip.org/wiki/intel/microarchitectures/skylake_(client)
-        ReorderBuffer<56, 4> storeQueue; 
+        ReorderBuffer<42, 4> storeQueue; 
 
         uint32_t curCycleRFReads; //for RF read stalls
         uint32_t curCycleIssuedUops; //for uop issue limits
@@ -475,7 +475,7 @@ class OOOCore : public Core {
         WindowStructure<1024, 64 /*size*/> insWindow; //NOTE: IW width is implicitly determined by the decoder, which sets the port masks according to uop type
 
         // rob:
-        ReorderBuffer<224, 4> rob;
+        ReorderBuffer<192, 8> rob;
 
         // Agner's guide says it's a 2-level pred and BHSR is 18 bits, so this is the config that makes sense;
         // in practice, this is probably closer to the Pentium M's branch predictor, (see Uzelac and Milenkovic,
@@ -491,7 +491,7 @@ class OOOCore : public Core {
         Address branchNotTakenNpc;
 
         uint64_t decodeCycle;
-        CycleQueue<28> uopQueue;  // models issue queue
+        CycleQueue<60> uopQueue;  // models issue queue
 
         uint64_t instrs, uops, bbls, approxInstrs, mispredBranches;
 		uint64_t idqNotDeliveredStalls, intMiscRecoveryStalls, retiredUops;

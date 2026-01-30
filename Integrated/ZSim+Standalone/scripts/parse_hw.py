@@ -7,6 +7,22 @@ import numpy as np
 from pathlib import Path
 
 
+COLUMNS_TO_AGGREGATE = [
+            'benchmark', 'variant', 'input','cache-references',  
+            'L1d-miss-ratio', 'L1i-miss-ratio', 'LLC-miss-ratio', 'ipc'
+        ] #None 
+
+FINAL_COLUMNS_TO_REMOVE = []
+        # [
+        #     'L1-dcache-loads', 'L1-dcache-load-misses', 'L1-dcache-stores', 
+        #     'L1-dcache-store-misses', 'L1-icache-loads', 'L1-icache-load-misses',  
+        # ]
+
+FINAL_ORDERING = [
+            'benchmark', 'variant', 'input', 'cache-references', 'L1i-miss-ratio', 'L1d-miss-ratio', 'LLC-miss-ratio', 'ipc'
+        ]
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Aggregates perfs counters (mean) collected using the collect_cpu_perf.py in the Zoo benchmark'
@@ -58,46 +74,6 @@ def calc_mean(df, groupby_cols, numeric_cols):
     return mean_df
 
 
-def calc_l1_ratio(df):
-    total_misses = 0
-    total_accesses = 0
-
-    # dcache
-    if 'L1-dcache-load-misses' in df.columns and  'L1-dcache-loads' in df.columns:
-        total_misses += df['L1-dcache-load-misses']
-        total_accesses += df['L1-dcache-loads']
-        
-    if 'L1-dcache-store-misses' in df.columns and  'L1-dcache-stores' in df.columns:
-        total_misses += df['L1-dcache-store-misses']
-        total_accesses += df['L1-dcache-stores']
-        
-    # icache
-    if  'L1-icache-loads'in df.columns and 'L1-icache-load-misses' in df.columns:
-        total_misses +=  df['L1-icache-load-misses']
-        total_accesses += df['L1-icache-loads']
-        
-    df['L1-miss-ratio'] = (total_misses / total_accesses)
-    
-    return df
-
-
-COLUMNS_TO_AGGREGATE = [
-            'benchmark', 'variant', 'input','instructions', 'cache-references',  
-            'L1-dcache-loads', 'L1-dcache-load-misses', 'L1-dcache-stores', 
-            'L1-dcache-store-misses', 'L1-icache-loads', 'L1-icache-load-misses', 
-            'LLC-miss-ratio', 'ipc'
-        ] #None 
-
-FINAL_COLUMNS_TO_REMOVE = [
-            'L1-dcache-loads', 'L1-dcache-load-misses', 'L1-dcache-stores', 
-            'L1-dcache-store-misses', 'L1-icache-loads', 'L1-icache-load-misses',  
-        ]
-
-FINAL_ORDERING = [
-            'benchmark', 'variant', 'input','instructions', 'cache-references', 'L1-miss-ratio', 'LLC-miss-ratio', 'ipc'
-        ]
-
-
 def main():   
     
     args = parse_args()
@@ -113,13 +89,11 @@ def main():
     
     numeric_cols = combined_df.select_dtypes(include='number').columns.tolist()
     
-    mean_df = calc_mean(combined_df, groupby_cols, numeric_cols)
-    mean_df = calc_l1_ratio(mean_df)
-    
-    mean_df['L1-miss-ratio'] =  (mean_df['L1-miss-ratio'] * 100).round(2)
-    mean_df['LLC-miss-ratio'] = (mean_df['LLC-miss-ratio'] * 100).round(2)
+    mean_df = calc_mean(combined_df, groupby_cols, numeric_cols)  
     
     cleaned_df =  mean_df.drop(columns=FINAL_COLUMNS_TO_REMOVE)
+    cleaned_df = cleaned_df[cleaned_df['input'] != 'panda']
+    
     sorted_df = cleaned_df.sort_values(by=['benchmark', 'variant', 'input'], ascending=[True, False, True])
     final_df = sorted_df.reindex(columns=FINAL_ORDERING)
     

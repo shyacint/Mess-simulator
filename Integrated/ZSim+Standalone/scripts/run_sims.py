@@ -25,23 +25,22 @@ def parse_args():
     parser.add_argument(
         "--apps-dir",
         required=True,
-        help="Workload applications directory to scan (default: current working directory)"
+        help="Workload applications directory to scan"
     )
     parser.add_argument(
         "--dataset",
         required=True,
-        default="koala",
-        help="Comma-separated list (e.g. koala,panda)"
+        help="Comma-separated list of datasets (e.g. koala,panda)"
     )
     parser.add_argument(
-        "--app-type",
-        default="serial",
-        help="Comma-separated list (e.g. serial,parallel)"
+        "--variant",
+        default="serial,parallel",
+        help="Comma-separated list of variants (e.g. serial,parallel)"
     )
     parser.add_argument(
         "--quick-run",
         type=int,
-        default= -1,
+        default=-1,
         help="Set the maximum number of inst to simulate (multiple of 1k inst)"
     )
     parser.add_argument(
@@ -168,9 +167,9 @@ def create_exe_cmd(dir_path, dataset):
     return None
 
 
-def process_directory(dir_path, dataset, app_type):
-    
-    full_path_dir = os.path.join(dir_path, app_type)
+def process_directory(dir_path, dataset, variant):
+    """Process directory and return executable command."""
+    full_path_dir = os.path.join(dir_path, variant)
     exe_cmd = create_exe_cmd(full_path_dir, dataset)
     return exe_cmd
             
@@ -201,9 +200,18 @@ def main():
     # Parse app specification
     app_numbers = parse_apps(args.apps)
     
-    # clean up for the csv
-    datasets = args.dataset.split(",")
-    app_types = args.app_type.split(",")
+    # Clean up and parse comma-separated lists
+    datasets = [d.strip() for d in args.dataset.split(",")]
+    variants = [v.strip() for v in args.variant.split(",")]
+    
+    # Print configuration for debugging
+    print("=" * 60)
+    print("Simulation Configuration:")
+    print(f"  Datasets: {datasets}")
+    print(f"  Variants: {variants}")
+    print(f"  Apps: {args.apps if args.apps else 'All'}")
+    print("=" * 60)
+    print()
     
     processes = []
 
@@ -223,8 +231,10 @@ def main():
         print(f"Processing {app}...")
         
         for dataset in datasets:
-            for app_type in app_types:
-                run_name = f"{app}_{app_type}_{dataset}"
+            for variant in variants:
+                # Create run name in format: app_variant_dataset
+                run_name = f"{app}_{variant}_{dataset}"
+                print(f"  Creating run: {run_name}")
                 
                 # Create absolute path for run directory
                 run_path = os.path.join(run_dir, run_name)
@@ -239,7 +249,12 @@ def main():
                 if args.quick_run > 0: 
                     config = config.replace('100000000000L', f'{int(args.quick_run) * 1000}L')
                 
-                new_cmd = process_directory(full_path, dataset, app_type)
+                new_cmd = process_directory(full_path, dataset, variant)
+                
+                if new_cmd is None:
+                    print(f"    WARNING: No executable command found for {app}/{variant}")
+                    continue
+                    
                 config = config.replace('<enter command>', f"{new_cmd}")
                 
                 # Write config to the run directory
@@ -254,26 +269,27 @@ def main():
                     stderr=subprocess.STDOUT,
                     cwd=run_path
                 )
-                processes.append(process)
+                processes.append((run_name, process))
                 
                 # Wait for batch if max concurrent limit is set
                 if args.max_concurrent > 0 and len(processes) >= args.max_concurrent:
                     print(f"Reached max concurrent limit ({args.max_concurrent}). Waiting for batch to complete...")
-                    for p in processes:
+                    for run_name, p in processes:
                         p.wait()
                         if p.returncode != 0:
-                            print(f"Warning: Process failed with return code {p.returncode}")
+                            print(f"    WARNING: {run_name} failed with return code {p.returncode}")
                     processes = []
                 
         print(f"Submitted all runs for {app}.\n")
     
     # Wait for remaining processes
     print(f"Waiting for remaining {len(processes)} processes to complete...")
-    for process in processes:
+    for run_name, process in processes:
         process.wait()
-        assert process.returncode == 0
+        if process.returncode != 0:
+            print(f"    WARNING: {run_name} failed with return code {process.returncode}")
         
-    print(f"All runs completed successfully!")
+    print(f"All runs completed!")
 
 if __name__ == "__main__":
     main()

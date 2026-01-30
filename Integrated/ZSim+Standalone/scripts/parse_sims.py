@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Script to aggregate ZSim simulation statistics across multiple applications.
-Extracts IPC and execution time from zsim-ev.h5 files in application directories.
-"""
 
 import argparse
 import h5py
@@ -12,150 +8,182 @@ from pathlib import Path
 import re
 
 
-def parse_app_folder(folder_name):
-    """
-    Parse application folder name to extract app number, name, and type.
-    Expected format: ##_app_name_type or ##_app_name
-    """
-    # Extract number and rest
-    match = re.match(r'\d+_(.+)', folder_name)
-    if not match:
-        return None, folder_name, None
-    
-    rest = match.group().lower()
-    
-    # Check if rest contains serial or parallel
-    if 'serial' in rest:
-        app_type = 'serial'
-        app_name = rest.replace('_serial', '').replace('serial', '').strip('_')
-    elif 'parallel' in rest:
-        app_type = 'parallel'
-        app_name = rest.replace('_parallel', '').replace('parallel', '').strip('_')
-    else:
-        app_type = None
-        app_name = rest
-        
-    if 'koala' in app_name:
-        app_input = 'koala'
-        app_name = app_name.replace('_koala', '').replace('koala', '').strip('_')
-    elif 'panda' in app_name:
-        app_input = 'panda'
-        app_name = app_name.replace('_panda', '').replace('panda', '').strip('_')
-    else:
-        app_input = None
-        app_name = rest
-    
-    return app_name, app_input, app_type
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Aggregate ZSim statistics from multiple application runs'
+    )
+    parser.add_argument(
+        'input_dir',
+        type=str,
+        help='Path to run directory containing application folders'
+    )
+    parser.add_argument(
+        '-o', '--output',
+        type=str,
+        default='summary_sim_stats.csv',
+        help='Output CSV file name (default: summary_sim_stats.csv)'
+    )
+    parser.add_argument(
+        '-f', '--frequency',
+        type=float,
+        default=2.4,
+        help='CPU frequency in GHz (default: 2.4)'
+    )
+    return parser.parse_args()
 
 
-def extract_stats(h5_path, freq_ghz=2.4):
+def parse_folder_name(folder_name):
     """
-    Extract IPC and execution time from zsim.h5 file.
+    Expected format: ##_<benchmark>_<variant>_<input-size>
+    Example: 08_lzw_compression_serial_koala
     
-    Args:
-        h5_path: Path to zsim.h5 file
-        freq_ghz: CPU frequency in GHz for time calculation
-    
-    Returns:
-        dict with ipc, execution_time_s, max_cycles, total_instrs
+    Returns: (benchmark, input_size, variant)
     """
+    name = folder_name.strip()
+    
+    # Must start with digits_
+    m = re.match(r'(?P<prefix>\d+)_', name)
+    if not m:
+        print(f"[parse] no numeric prefix: {folder_name}")
+        return None, None, None
+    
+    prefix = m.group('prefix')
+    rest = name[m.end():]  # Everything after "##_"
+    
+    parts = rest.split('_')
+    
+    if len(parts) < 3:
+        print(f"[parse] not enough parts in: {folder_name}")
+        return None, None, None
+    
+    # Find variant (should be 'serial' or 'parallel')
+    variant_idx = None
+    for i, part in enumerate(parts):
+        if part.lower() in ('serial', 'parallel'):
+            variant_idx = i
+            break
+    
+    if variant_idx is None:
+        print(f"[parse] no variant (serial/parallel) found in: {folder_name}")
+        return None, None, None
+    
+    # Everything before variant = benchmark
+    benchmark_parts = parts[:variant_idx]
+    benchmark = f"{prefix}_{'_'.join(benchmark_parts)}"
+    
+    # Variant
+    variant = parts[variant_idx].lower()
+    
+    # Everything after variant = input
+    input_parts = parts[variant_idx + 1:]
+    input_size = '_'.join(input_parts) if input_parts else 'unknown'
+    
+    return benchmark, input_size, variant
+
+
+def extract_stats_from_h5(h5_path, freq_ghz):
+    """Extract statistics from a single zsim.h5 file."""
     try:
         with h5py.File(h5_path, 'r') as f:
-            dset = f["stats"]["root"]       
+            CORE_CFG_NAME = 'c'
+            dset = f["stats"]["root"]
             
             num_samps = len(dset)
+            start_idx = int(num_samps * 0.35)
+            final_idx = -1 #int(num_samps * 0.90)
             
-            start_idx = int(num_samps * 0.25)
-            final_idx = int(num_samps * 0.75)
-            if start_idx >= final_idx:
-                raise Exception("Number of samples is suspiciously low for zoo applications")
+            print(f'start idx = {start_idx} | final idx = {final_idx}')
+            
+            if start_idx >= final_idx and not final_idx < 0:
+                raise Exception("Number of samples is suspiciously low")
             
             samp_start = dset[start_idx]
             samp_final = dset[final_idx]
             
-            core_cycles_start = samp_start['skylake']['cycles']
-            core_insts_start = samp_start['skylake']['instrs']
+            print(samp_final[CORE_CFG_NAME]['cycles'])
+            print(samp_start[CORE_CFG_NAME]['cycles'])
             
-            core_cycles_final = samp_final['skylake']['cycles']
-            core_insts_final = samp_final['skylake']['instrs']
-            
-            total_cycles = dset[-1]['skylake']['cycles']
-            total_insts = dset[-1]['skylake']['instrs']
+            # Calculate IPC over middle 50% interval
+            cycles_interval = samp_final[CORE_CFG_NAME]['cycles'].sum() - samp_start[CORE_CFG_NAME]['cycles'].sum()
+            insts_interval = samp_final[CORE_CFG_NAME]['instrs'].sum() - samp_start[CORE_CFG_NAME]['instrs'].sum()
 
-            
-            cycles_over_interval = core_cycles_final - core_cycles_start    
-            insts_over_interval = core_insts_final - core_insts_start      
-                         
-            if cycles_over_interval > 0:
-                samp_ipc = (1. * insts_over_interval) / cycles_over_interval
+            if cycles_interval > 0:
+                ipc = round(insts_interval / cycles_interval, 4)
             else:
-                samp_ipc = np.nan
-                print(f"Warning: cycles_over_interval is 0 for {h5_path}, setting IPC to NaN")
+                ipc = np.nan
             
-            # Handle divide by zero for execution time
+            # Total cycles and instructions
+            total_cycles = dset[-1][CORE_CFG_NAME]['cycles'].sum()
+            total_insts = dset[-1][CORE_CFG_NAME]['instrs'].sum() 
+            
+            # Execution time
             if freq_ghz > 0 and total_cycles > 0:
-                execution_time_s = total_cycles / (freq_ghz * 1e9)
+                exec_time_s = round(dset[-1][CORE_CFG_NAME]['cycles'].max() / (freq_ghz * 1e9), 6)
             else:
-                execution_time_s = np.nan
-                if freq_ghz <= 0:
-                    print(f"Warning: invalid frequency {freq_ghz} GHz for {h5_path}")
-                if cycles_over_interval <= 0:
-                    print(f"Warning: cycles_over_interval is 0 for {h5_path}, setting execution_time to NaN")
+                exec_time_s = np.nan
+            
+            cache_ratios = {}
+            
+            for cache in ['l1i', 'l1d', 'l2', 'l3']:
+                # All read operations (loads)
+                read_hits = samp_final[cache]['hGETS'].sum() - samp_start[cache]['hGETS'].sum()
+                read_misses = samp_final[cache]['mGETS'].sum() - samp_start[cache]['mGETS'].sum()
+                
+                # All write operations (stores)
+                write_hits = samp_final[cache]['hGETX'].sum() - samp_start[cache]['hGETX'].sum()
+                write_misses = (samp_final[cache]['mGETXIM'].sum() - samp_start[cache]['mGETXIM'].sum() +
+                                samp_final[cache]['mGETXSM'].sum() - samp_start[cache]['mGETXSM'].sum())
+                
+                cache_hits = read_hits     #+ write_hits
+                cache_misses = read_misses #+ write_misses 
+                
+                if 'l1' in cache:
+                    cache_hits +=  (samp_final[cache]['fhGETS'].sum() - samp_start[cache]['fhGETS'].sum()) + (samp_final[cache]['fhGETX'].sum() - samp_start[cache]['fhGETX'].sum())
+                  
+                
+                if cache_hits > 0:
+                    cache_ratios[cache] = round( cache_misses / (cache_hits), 2)
+                else:
+                    cache_ratios[cache] = np.nan
                     
+            for key, value in cache_ratios.items():
+                print(f"{key}: {value}")
             
-            l1i_samp_misses = samp_final['l1i']['mGETS'] + samp_final['l1i']['mGETXIM'] + samp_final['l1i']['mGETXSM']
-            l1d_samp_misses = samp_final['l1d']['mGETS'] + samp_final['l1d']['mGETXIM'] + samp_final['l1d']['mGETXSM']
-            l1_miss_over_interval = l1i_samp_misses + l1d_samp_misses
-            
-            caches = ['l1i', 'l1d', 'l2', 'l3']
-            
-            misses = 0
-            hits = 0
-            for cache in caches:
-                misses += samp_final[cache]['mGETS'] + samp_final[cache]['mGETXIM'] + samp_final[cache]['mGETXSM']
-                hits += samp_final[cache]['hGETS'] + samp_final[cache]['hGETX']
-            
-            total_cache_refs = misses + hits
-            
-            print(l1_miss_over_interval)
-            print(total_cache_refs)
-            
+            print(exec_time_s)
             return {
-                'ipc': samp_ipc,
-                'time': execution_time_s,
-                'l1_misses_ratio': (l1_miss_over_interval/total_cache_refs) * 100,
-                'cache_refs': total_cache_refs,
-                'total_cycles': total_cycles,
-                'total_insts': total_insts,
+                'exec_time_s': exec_time_s,
+                'instructions': total_insts,
+                'cycles': total_cycles,
+                'L1i-miss-ratio': cache_ratios['l1i'],
+                'L1d-miss-ratio': cache_ratios['l1d'],
+                'LLC-miss-ratio': cache_ratios['l3'],
+                'ipc': ipc,
             }
+
     except Exception as e:
         print(f"Error reading {h5_path}: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
-def collect_stats(run_dir, freq_ghz=2.4):
-    """
-    Collect statistics from all application directories in run_dir.
+def collect_all_stats(input_dir, freq_ghz):
+    """Collect statistics from all application directories."""
+    input_path = Path(input_dir)
     
-    Args:
-        run_dir: Path to run directory containing application folders
-        freq_ghz: CPU frequency in GHz
+    if not input_path.exists():
+        raise FileNotFoundError(f"Directory not found: {input_dir}")
     
-    Returns:
-        pandas DataFrame with collected statistics
-    """
-    run_path = Path(run_dir)
-    
-    if not run_path.exists():
-        raise FileNotFoundError(f"Run directory not found: {run_dir}")
-    
-    results = []
-    
-    # Find all application directories (match pattern ##_*)
-    app_dirs = sorted([d for d in run_path.iterdir() 
+    # Find all application directories matching pattern ##_*
+    app_dirs = sorted([d for d in input_path.iterdir() 
                       if d.is_dir() and re.match(r'\d+_', d.name)])
     
-    print(f"Found {len(app_dirs)} application directories")
+    if not app_dirs:
+        raise Exception(f'No application directories found in {input_dir}')
+    
+    print(f"\nFound {len(app_dirs)} directories to process\n")
+    
+    results = []
     
     for app_dir in app_dirs:
         h5_file = app_dir / "zsim.h5"
@@ -164,85 +192,81 @@ def collect_stats(run_dir, freq_ghz=2.4):
             print(f"Warning: {h5_file} not found, skipping {app_dir.name}")
             continue
         
-        # Parse folder name
-        app_name, app_input, app_type = parse_app_folder(app_dir.name)
+        benchmark, input_size, variant = parse_folder_name(app_dir.name)
         
-        # Extract stats
-        stats = extract_stats(h5_file, freq_ghz)
+        if benchmark is None:
+            print(f"Skipping {app_dir.name} - could not parse folder name")
+            continue
+        
+        print(f"Processing: {app_dir.name}")
+        print(f"  Parsed as: benchmark={benchmark}, variant={variant}, input={input_size}")
+        
+        stats = extract_stats_from_h5(h5_file, freq_ghz)
         
         if stats:
             results.append({
-                'app_name': app_name,
-                'app_input': app_input,
-                'app_type': app_type,
-                'ipc': stats['ipc'],
-                'l1_misses_ratio': stats['l1_misses_ratio'],
-                'cache_refs': stats['cache_refs'],
-                'time(s)': stats['time'],
-                'total_insts': stats['total_insts'],
-                'folder_name': app_dir.name
+                'benchmark': benchmark,
+                'variant': variant,
+                'input': input_size,
+                **stats
             })
-            print(f"Processed {app_dir.name}: IPC={stats['ipc']:.3f}, Time={stats['time']:.6f}s")
+            print(f"  [OK] IPC: {stats['ipc']}, Instructions: {stats['instructions']}")
         else:
-            print(f"Failed to process {app_dir.name}")
+            print(f"  [FAIL] Failed to extract stats")
+        
+        print()
     
-    df = pd.DataFrame(results)
+    return pd.DataFrame(results)
+
+
+def sort_dataframe(df):
+    """Sort dataframe by benchmark and variant (serial before parallel)."""
+    if df.empty:
+        return df
     
-    # Sort by app number, then by app_type (serial before parallel)
-    if not df.empty and 'app_name' in df.columns:
-        # Create a sort key for app_type: serial=0, parallel=1, None=2
-        df['_sort_key'] = df['app_type'].map({'serial': 0, 'parallel': 1}).fillna(2)
-        df = df.sort_values(['app_name', '_sort_key']).reset_index(drop=True)
-        df = df.drop(columns=['_sort_key'])
+    variant_order = {'serial': 0, 'parallel': 1}
+    df['variant_sort'] = df['variant'].map(variant_order)
+    df = df.sort_values(['benchmark', 'variant_sort', 'input'])
+    df = df.drop('variant_sort', axis=1)
     
     return df
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Aggregate ZSim statistics from multiple application runs'
-    )
-    parser.add_argument(
-        'run_dir',
-        type=str,
-        help='Path to run directory containing application folders'
-    )
-    parser.add_argument(
-        '-o', '--output',
-        type=str,
-        default='zsim_stats.csv',
-        help='Output CSV file name (default: zsim_stats.csv)'
-    )
-    parser.add_argument(
-        '-f', '--frequency',
-        type=float,
-        default=2.4,
-        help='CPU frequency in GHz (default: 2.4)'
-    )
+    args = parse_args()
     
-    args = parser.parse_args()
-    
-    print(f"Collecting statistics from: {args.run_dir}")
+    print("=" * 60)
+    print("ZSim Statistics Aggregator")
+    print("=" * 60)
+    print(f"Input directory: {args.input_dir}")
     print(f"CPU frequency: {args.frequency} GHz")
+    print(f"Output file: {args.output}")
+    print()
     
-    df = collect_stats(args.run_dir, args.frequency)
+    df = collect_all_stats(args.input_dir, args.frequency)
     
     if df.empty:
-        print("\nNo data collected!")
+        print("No data collected!")
         return
     
-    # Save to CSV
-    output_path = Path(args.output)
-    df.to_csv(output_path, index=False)
+    df = sort_dataframe(df)
     
-    print(f"\n{'='*60}")
-    print(f"Results saved to: {output_path}")
-    print(f"Total applications processed: {len(df)}")
-    print(f"\nSummary statistics:")
-    print(f"  Mean IPC: {df['ipc'].mean():.3f}")
-    print(f"  Mean execution time: {df['time(s)'].mean():.6f} s")
-    print(f"\nDataFrame preview:")
-    print(df[['app_name', 'app_input', 'app_type', 'time(s)', 'total_insts', 'cache_refs', 'l1_misses_ratio','ipc',]].to_string())
+    # Enforce column ordering
+    desired_columns = [
+        'benchmark', 'variant', 'input',
+        'instructions', 'cycles', 'L1i-miss-ratio', 
+        'L1d-miss-ratio', 'LLC-miss-ratio', 'ipc'
+    ]
+    
+    df = df[desired_columns]
+    
+    df.to_csv(args.output, index=False)
+    
+    print("=" * 60)
+    print("SUMMARY")
+    print("=" * 60)
+    print(f"Processed: {len(df)} applications")
+    print(f"Output: {args.output}")
 
 
 if __name__ == '__main__':

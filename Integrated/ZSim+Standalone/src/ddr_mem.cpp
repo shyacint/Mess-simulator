@@ -727,6 +727,21 @@ void DDRMemory::initTech(const char* techName) {
         tWR = 20;
         tRFC = 347;
         tREFI = 10398;
+    } else if (tech == "DDR4-2133-CL8") {
+        // from https://www.alldatasheet.com/html-pdf/1179064/HYNIX/HMA42GR7AFR4N-TF/753/4/HMA42GR7AFR4N-TF.html
+        tCK = 0.937;
+        tBL = 4;
+        tCL = 15;
+        tRCD = 15;
+        tRTP = 8;
+        tRP = 15;
+        tRRD = 4;
+        tRAS = 33;
+        tFAW = 16;
+        tWTR = 8;
+        tWR = 15;
+        tRFC = 350;
+        tREFI = 7800;
     } else {
         panic("Unknown technology %s, you'll need to define it", techName);
     }

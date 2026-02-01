@@ -6,19 +6,16 @@ ZOO_GITHUB="git@github.com:bakhshalipour/zoo-pre-release.git"
 
 
 echo "Installing Linux programs..."
-if [[ ! -f "$LINUX_PROGRAMS_FLAG_FILE" ]]; then
-    sudo apt-get -y update
-    sudo apt-get -y upgrade
+# Removed the flag file check since it wasn't defined
+sudo apt-get -y update
+sudo apt-get -y upgrade
 
-    packages=(
-        build-essential scons libconfig-dev libconfig++-dev
-        libhdf5-dev libelf-dev python3.10-venv
-    )
+packages=(
+    build-essential scons libconfig-dev libconfig++-dev
+    libhdf5-dev libelf-dev python3.10-venv
+)
 
-    sudo apt-get install -y "${packages[@]}"
-else
-    echo "Linux programs are already installed"
-fi
+sudo apt-get install -y "${packages[@]}"
 
 echo '--------------------------------------------------------------------------------'
 
@@ -36,9 +33,10 @@ if [[ -z "$PINPATH" ]]; then
         exit 1
     fi
 
-    echo "export PINPATH=$(readlink -f $pin_dir)" >>$HOME/.bashrc
-    echo "Run the following command to apply changes across all sessions."
-    echo "source ~/.bashrc"
+    # Export for current session AND add to .bashrc
+    export PINPATH=$(readlink -f $pin_dir)
+    echo "export PINPATH=$PINPATH" >> $HOME/.bashrc
+    echo "PINPATH set to: $PINPATH"
 else
     echo "Pin is already installed. PINPATH=$PINPATH"
 fi
@@ -54,12 +52,17 @@ if [[ -z "$DRAMSIM3PATH" ]]; then
         exit 1
     fi
 
-    echo "export DRAMSIM3PATH=$(readlink -f $dramsim3_dir)" >>$HOME/.bashrc
-    echo "Run the following command to apply changes across all sessions."
-    echo "source ~/.bashrc"
-
+    # Export for current session AND add to .bashrc
+    export DRAMSIM3PATH=$(readlink -f $dramsim3_dir)
+    echo "export DRAMSIM3PATH=$DRAMSIM3PATH" >> $HOME/.bashrc
+    echo "DRAMSIM3PATH set to: $DRAMSIM3PATH"
 else
     echo "DRAMSim3 already installed. DRAMSIM3PATH=$DRAMSIM3PATH"
+fi
+
+# Always build DRAMSim3 if path exists
+if [[ -d "$DRAMSIM3PATH" ]]; then
+    echo "Building DRAMSim3..."
     cd "$DRAMSIM3PATH"
     mkdir -p build
     cd build
@@ -72,10 +75,14 @@ echo '--------------------------------------------------------------------------
 echo "Building ZSim+Standalone Mess"
 if [[ ! -z "$DRAMSIM3PATH" && ! -z "$PINPATH" ]]; then
     cd "${ORIGINAL_DIR}"
+    echo "Current environment:"
+    echo "  DRAMSIM3PATH=$DRAMSIM3PATH"
+    echo "  PINPATH=$PINPATH"
+    
     scons -c
     scons -j$(nproc)
 else
-    echo "Missing dependencies:"
+    echo "ERROR: Missing dependencies:"
     echo "  DRAMSIM3PATH=$DRAMSIM3PATH"
     echo "  PINPATH=$PINPATH"
     exit 1
@@ -83,7 +90,6 @@ fi
 
 echo '--------------------------------------------------------------------------------'
 
-#TODO: clean up this flow 
 echo "Cloning Zoo Memory Benchmark - dataset install will take roughly an hour"
 zoo_dir="${HOME_DIR}/zoo-pre-release"
 if [[ -z "$ZOOPATH" ]]; then
@@ -94,18 +100,35 @@ if [[ -z "$ZOOPATH" ]]; then
         exit 1
     fi
 
-    echo "export ZOOPATH=$(readlink -f "$zoo_dir")" >> "$HOME/.bashrc"
-    echo "Run the following command to apply changes across all sessions."
-    echo "source ~/.bashrc"
-
+    # Export for current session AND add to .bashrc
+    export ZOOPATH=$(readlink -f "$zoo_dir")
+    echo "export ZOOPATH=$ZOOPATH" >> "$HOME/.bashrc"
+    echo "ZOOPATH set to: $ZOOPATH"
 else
     if [[ ! -d "$ZOOPATH" ]]; then
         echo "$zoo_dir is missing! Will retry cloning the repo"
         git clone -b cxl-zsim "$ZOO_GITHUB" "$zoo_dir"
-        exit 1
+        if [[ ! -d "$zoo_dir" ]]; then
+            echo "Failed to clone zoo repository!"
+            exit 1
+        fi
     fi  
     echo "Zoo Memory Benchmark already installed. ZOOPATH=$ZOOPATH"
-    cd "$ZOOPATH" || exit 1
-    "$ZOOPATH/scripts/setup.sh"
 fi
 
+# Setup Zoo if the path exists
+if [[ -d "$ZOOPATH" ]]; then
+    cd "$ZOOPATH" || exit 1
+    if [[ -f "$ZOOPATH/scripts/setup.sh" ]]; then
+        "$ZOOPATH/scripts/setup.sh"
+    fi
+fi
+
+echo '--------------------------------------------------------------------------------'
+echo "Setup complete!"
+echo "Environment variables set:"
+echo "  PINPATH=$PINPATH"
+echo "  DRAMSIM3PATH=$DRAMSIM3PATH"
+echo "  ZOOPATH=$ZOOPATH"
+echo ""
+echo "To use these in new shell sessions, run: source ~/.bashrc"

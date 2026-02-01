@@ -3,3 +3,4 @@ build/
 venv/
 .sconsign.dblite
 runs.*
+.sconsign.dblite

@@ -1,5 +1,7 @@
+#! /usr/bin/env bash
+
 ORIGINAL_DIR=$(pwd)
-HOME_DIR="/mnt/ssd/"
+HOME_DIR="/mnt/ssd"
 ZOO_GITHUB="git@github.com:bakhshalipour/zoo-pre-release.git"
 
 

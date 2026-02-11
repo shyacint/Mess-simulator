@@ -341,99 +341,118 @@ DDRMemory* BuildDDRMemory(Config& config, uint32_t lineSize, uint32_t frequency,
     return mem;
 }
 
-MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t frequency, uint32_t domain, g_string& name) {
+MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t frequency, uint32_t domain, g_string& name, const string& prefix) {
     
-    vector<const char*> memGroupNames;
-    unordered_map <string, vector<MemObject*>> memMap;
-    config.subgroups("sys.memories", memGroupNames);
+    #ifdef FEATURE_HYBRID_MEM
 
-    for(const char* group: memGroupNames) {
+        //Type
+        string type = config.get<const char*>( prefix + "type", "Simple");
 
-            memMap[group] = vector<MemObject*>();
+        //Latency
+        uint32_t latency = (type == "DDR")? -1 : config.get<uint32_t>(prefix + "latency", 100);
 
-            string prefix = string("sys.memories.") + group + ".";
-            string type = config.get<const char*>(prefix + "type", "Simple");
-            uint32_t latency = (type == "DDR")? -1 : config.get<uint32_t>(prefix + "latency", 100);
+        MemObject* mem = nullptr;
+        if (type == "Simple") {
+            mem = new SimpleMemory(latency, name);
+        } else if (type == "MD1") {
+            // The following params are for MD1 only
+            // NOTE: Frequency (in MHz) -- note this is a sys parameter (not sys.mem). There is an implicit assumption of having
+            // a single CCT across the system, and we are dealing with latencies in *core* clock cycles
+            // Peak bandwidth (in MB/s)
+            uint32_t bandwidth = config.get<uint32_t>(prefix + "bandwidth", 6400);
 
-            MemObject* mem = nullptr;
+            mem = new MD1Memory(lineSize, frequency, bandwidth, latency, name);
+        } else if (type == "DDR") {
+            mem = BuildDDRMemory(config, lineSize, frequency, domain, name, prefix);
+        } else if (type == "Mess") {
+            double frequencyGHz = ((double)frequency)/1000;
+            string curveAddress = config.get<const char*>(prefix + "curveAddress");
+            uint32_t curveWindowSize = config.get<uint32_t>(prefix + "curveWindowSize", 1000);
+                // add frequency to third argument
+            mem = new WeaveMessMemCtrl(curveAddress, curveWindowSize, frequencyGHz, domain, name);
+        } else {
+            panic("Invalid memory controller type %s", type.c_str());
+        }  
+        
+        return mem;
+    #else    
+        //Type
+        string type = config.get<const char*>("sys.mem.type", "Simple");
 
+        //Latency
+        uint32_t latency = (type == "DDR")? -1 : config.get<uint32_t>("sys.mem.latency", 100);
 
-    }
-    //Type
-    string type = config.get<const char*>("sys.mem.type", "Simple");
+        MemObject* mem = nullptr;
+        if (type == "Simple") {
+            mem = new SimpleMemory(latency, name);
+        } else if (type == "MD1") {
+            // The following params are for MD1 only
+            // NOTE: Frequency (in MHz) -- note this is a sys parameter (not sys.mem). There is an implicit assumption of having
+            // a single CCT across the system, and we are dealing with latencies in *core* clock cycles
+            // Peak bandwidth (in MB/s)
+            uint32_t bandwidth = config.get<uint32_t>("sys.mem.bandwidth", 6400);
 
-    //Latency
-    uint32_t latency = (type == "DDR")? -1 : config.get<uint32_t>("sys.mem.latency", 100);
-
-    MemObject* mem = nullptr;
-    if (type == "Simple") {
-        mem = new SimpleMemory(latency, name);
-    } else if (type == "MD1") {
-        // The following params are for MD1 only
-        // NOTE: Frequency (in MHz) -- note this is a sys parameter (not sys.mem). There is an implicit assumption of having
-        // a single CCT across the system, and we are dealing with latencies in *core* clock cycles
-        // Peak bandwidth (in MB/s)
-        uint32_t bandwidth = config.get<uint32_t>("sys.mem.bandwidth", 6400);
-
-        mem = new MD1Memory(lineSize, frequency, bandwidth, latency, name);
-    } else if (type == "WeaveMD1") {
-        uint32_t bandwidth = config.get<uint32_t>("sys.mem.bandwidth", 6400);
-        uint32_t boundLatency = config.get<uint32_t>("sys.mem.boundLatency", latency);
-        mem = new WeaveMD1Memory(lineSize, frequency, bandwidth, latency, boundLatency, domain, name);
-    } else if (type == "WeaveSimple") {
-        uint32_t boundLatency = config.get<uint32_t>("sys.mem.boundLatency", 100);
-        mem = new WeaveSimpleMemory(latency, boundLatency, domain, name);
-    } else if (type == "DDR") {
-        mem = BuildDDRMemory(config, lineSize, frequency, domain, name, "sys.mem.");
-    } else if (type == "DRAMSim") {
-        uint64_t cpuFreqHz = 1000000 * frequency;
-        uint32_t capacity = config.get<uint32_t>("sys.mem.capacityMB", 16384);
-        string dramTechIni = config.get<const char*>("sys.mem.techIni");
-        string dramSystemIni = config.get<const char*>("sys.mem.systemIni");
-        string outputDir = config.get<const char*>("sys.mem.outputDir");
-        string traceName = config.get<const char*>("sys.mem.traceName");
-        mem = new DRAMSimMemory(dramTechIni, dramSystemIni, outputDir, traceName, capacity, cpuFreqHz, latency, domain, name);
-    } else if (type == "DRAMsim3") {
-        int cpuFreqMHz = frequency;
-        string dramIni = config.get<const char*>("sys.mem.configIni");
-        string outputDir = config.get<const char*>("sys.mem.outputDir");
-        mem = new DRAMsim3Memory(dramIni, outputDir, cpuFreqMHz, domain, name);
-    } 
-    #ifdef _WITH_RAMULATOR_ //was compiled with ramulator
-    else if (type == "Ramulator") { 
-        string ramulatorConfig = config.get<const char*>("sys.mem.ramulatorConfig");
-        bool pimMode = config.get<bool>("sim.pimMode", false);
-        bool networkOverhead = config.get<bool>("sim.networkOverhead", false);
-        bool record_memory_trace = config.get<bool>("sim.recordMemoryTrace", false);
-        string application = "MessBenchmark";//config.get<const char*>("sim.stats");
-        mem = new Ramulator(ramulatorConfig, zinfo->numCores, lineSize, latency, domain, name, pimMode, application, frequency, record_memory_trace,networkOverhead);
-        // zinfo->ramulator_memory = true;
-        // zinfo->ramulator = static_cast<Ramulator*>(mem);
-    }
+            mem = new MD1Memory(lineSize, frequency, bandwidth, latency, name);
+        } else if (type == "WeaveMD1") {
+            uint32_t bandwidth = config.get<uint32_t>("sys.mem.bandwidth", 6400);
+            uint32_t boundLatency = config.get<uint32_t>("sys.mem.boundLatency", latency);
+            mem = new WeaveMD1Memory(lineSize, frequency, bandwidth, latency, boundLatency, domain, name);
+        } else if (type == "WeaveSimple") {
+            uint32_t boundLatency = config.get<uint32_t>("sys.mem.boundLatency", 100);
+            mem = new WeaveSimpleMemory(latency, boundLatency, domain, name);
+        } else if (type == "DDR") {
+            mem = BuildDDRMemory(config, lineSize, frequency, domain, name, "sys.mem.");
+        } else if (type == "DRAMSim") {
+            uint64_t cpuFreqHz = 1000000 * frequency;
+            uint32_t capacity = config.get<uint32_t>("sys.mem.capacityMB", 16384);
+            string dramTechIni = config.get<const char*>("sys.mem.techIni");
+            string dramSystemIni = config.get<const char*>("sys.mem.systemIni");
+            string outputDir = config.get<const char*>("sys.mem.outputDir");
+            string traceName = config.get<const char*>("sys.mem.traceName");
+            mem = new DRAMSimMemory(dramTechIni, dramSystemIni, outputDir, traceName, capacity, cpuFreqHz, latency, domain, name);
+        } else if (type == "DRAMsim3") {
+            int cpuFreqMHz = frequency;
+            string dramIni = config.get<const char*>("sys.mem.configIni");
+            string outputDir = config.get<const char*>("sys.mem.outputDir");
+            mem = new DRAMsim3Memory(dramIni, outputDir, cpuFreqMHz, domain, name);
+        } 
+        #ifdef _WITH_RAMULATOR_ //was compiled with ramulator
+        else if (type == "Ramulator") { 
+            string ramulatorConfig = config.get<const char*>("sys.mem.ramulatorConfig");
+            bool pimMode = config.get<bool>("sim.pimMode", false);
+            bool networkOverhead = config.get<bool>("sim.networkOverhead", false);
+            bool record_memory_trace = config.get<bool>("sim.recordMemoryTrace", false);
+            string application = "MessBenchmark";//config.get<const char*>("sim.stats");
+            mem = new Ramulator(ramulatorConfig, zinfo->numCores, lineSize, latency, domain, name, pimMode, application, frequency, record_memory_trace,networkOverhead);
+            // zinfo->ramulator_memory = true;
+            // zinfo->ramulator = static_cast<Ramulator*>(mem);
+        }
+        #endif
+        else if (type == "Detailed") {
+            // FIXME(dsm): Don't use a separate config file... see DDRMemory
+            g_string mcfg = config.get<const char*>("sys.mem.paramFile", "");
+            mem = new MemControllerBase(mcfg, lineSize, frequency, domain, name);
+        } 
+        // else if (type == "bw-lat-cruves") {
+        //     string curveAddress = config.get<const char*>("sys.mem.curveAddress");
+        // uint32_t curveWindowSize = config.get<uint32_t>("sys.mem.curveWindowSize", 1000);
+        //     double MaxTheoreticalBW = config.get<double>("sys.mem.MaxTheoreticalBW", 128);
+        //     mem = new WeaveBwLatMemCtrl(curveAddress, curveWindowSize, MaxTheoreticalBW, domain, name);
+        //     // panic("Invalid memory controller type %s", type.c_str());
+        // } 
+        else if (type == "Mess") {
+            double frequencyGHz = ((double)frequency)/1000;
+            string curveAddress = config.get<const char*>("sys.mem.curveAddress");
+            uint32_t curveWindowSize = config.get<uint32_t>("sys.mem.curveWindowSize", 1000);
+                // add frequency to third argument
+            mem = new WeaveMessMemCtrl(curveAddress, curveWindowSize, frequencyGHz, domain, name);
+        } else {
+            panic("Invalid memory controller type %s", type.c_str());
+        } 
+        return mem;
     #endif
-    else if (type == "Detailed") {
-        // FIXME(dsm): Don't use a separate config file... see DDRMemory
-        g_string mcfg = config.get<const char*>("sys.mem.paramFile", "");
-        mem = new MemControllerBase(mcfg, lineSize, frequency, domain, name);
-    } 
-    // else if (type == "bw-lat-cruves") {
-    //     string curveAddress = config.get<const char*>("sys.mem.curveAddress");
-    // uint32_t curveWindowSize = config.get<uint32_t>("sys.mem.curveWindowSize", 1000);
-    //     double MaxTheoreticalBW = config.get<double>("sys.mem.MaxTheoreticalBW", 128);
-    //     mem = new WeaveBwLatMemCtrl(curveAddress, curveWindowSize, MaxTheoreticalBW, domain, name);
-    //     // panic("Invalid memory controller type %s", type.c_str());
-    // } 
-    else if (type == "Mess") {
-        double frequencyGHz = ((double)frequency)/1000;
-        string curveAddress = config.get<const char*>("sys.mem.curveAddress");
-        uint32_t curveWindowSize = config.get<uint32_t>("sys.mem.curveWindowSize", 1000);
-            // add frequency to third argument
-        mem = new WeaveMessMemCtrl(curveAddress, curveWindowSize, frequencyGHz, domain, name);
-    } else {
-        panic("Invalid memory controller type %s", type.c_str());
-    } 
-    return mem;
 }
+
 
 typedef vector<vector<BaseCache*>> CacheGroup;
 
@@ -560,32 +579,106 @@ static void InitSystem(Config& config) {
      */
 
     //Build the memory controllers
-    uint32_t memControllers = config.get<uint32_t>("sys.mem.controllers", 1);
-    assert(memControllers > 0);
+    #ifdef FEATURE_HYBRID_MEM
+        uint32_t memControllers = 0;
 
-    g_vector<MemObject*> mems;
-    mems.resize(memControllers);
+        vector<const char*> hybridMemGroupNames;
+        config.subgroups("sys.hybrid_mem", hybridMemGroupNames);
 
-    for (uint32_t i = 0; i < memControllers; i++) {
-        stringstream ss;
-        ss << "mem-" << i;
-        g_string name(ss.str().c_str());
-        //uint32_t domain = nextDomain(); //i*zinfo->numDomains/memControllers;
-        uint32_t domain = i*zinfo->numDomains/memControllers;
-        mems[i] = BuildMemoryController(config, zinfo->lineSize, zinfo->freqMHz, domain, name);
-    }
-
-
-
-    if (memControllers > 1) {
-        bool splitAddrs = config.get<bool>("sys.mem.splitAddrs", true);
-        if (splitAddrs) {
-            MemObject* splitter = new SplitAddrMemory(mems, "mem-splitter");
-            mems.resize(1);
-            mems[0] = splitter;
+        // are we even doing a hybrid mem simulation?
+        if (hybridMemGroupNames.size() > 1) {
+            for(const char* group: hybridMemGroupNames) {
+                string prefix = string("sys.hybrid_mem.") + group + ".";
+                memControllers += config.get<uint32_t>(prefix + "controllers", 1);   
+            } 
         }
-    }
+        
+        g_vector<MemObject*> mems;
 
+        // are we even doing a hybrid mem simulation?
+        if (hybridMemGroupNames.size() > 0) {
+            uint32_t numBuiltControllers = 0;
+
+            for(const char* group: hybridMemGroupNames) {
+                string prefix = string("sys.hybrid_mem.") + group + ".";
+                uint32_t groupNumControllers = config.get<uint32_t>(prefix + "controllers", 1);  
+                
+                for (uint32_t i = 0; i < groupNumControllers; i++) {
+                    stringstream ss;
+                    ss << "mem-" << i + numBuiltControllers;
+                    g_string name(ss.str().c_str());
+
+                    //uint32_t domain = nextDomain(); //i*zinfo->numDomains/memControllers;
+                    uint32_t domain = (i + numBuiltControllers)*zinfo->numDomains/memControllers;
+                    mems.push_back(BuildMemoryController(config, zinfo->lineSize, zinfo->freqMHz, domain, name, prefix));
+                }
+                info("Hybrid mem %s has %d controllers", group, groupNumControllers);
+                numBuiltControllers += groupNumControllers;
+            } 
+        
+            if (memControllers > 1) {
+                bool splitAddrs = config.get<bool>("sys.hybrid_mem.splitAddrs", true);
+                if (splitAddrs) {
+                    MemObject* splitter = new SplitAddrMemory(mems, "mem-splitter");
+                    mems.resize(1);
+                    mems[0] = splitter;
+                }
+            }
+            
+        } else {
+            uint32_t memControllers = config.get<uint32_t>("sys.mem.controllers", 1); 
+            assert(memControllers > 0);
+
+            g_vector<MemObject*> mems;
+            mems.resize(memControllers);
+            string prefix = "sys.mem.";
+
+            for (uint32_t i = 0; i < memControllers; i++) {
+                stringstream ss;
+                ss << "mem-" << i;
+                g_string name(ss.str().c_str());
+                //uint32_t domain = nextDomain(); //i*zinfo->numDomains/memControllers;
+                uint32_t domain = i*zinfo->numDomains/memControllers;
+                mems[i] = BuildMemoryController(config, zinfo->lineSize, zinfo->freqMHz, domain, name, prefix);
+            }
+
+            if (memControllers > 1) {
+                bool splitAddrs = config.get<bool>("sys.mem.splitAddrs", true);
+                if (splitAddrs) {
+                    MemObject* splitter = new SplitAddrMemory(mems, "mem-splitter");
+                    mems.resize(1);
+                    mems[0] = splitter;
+                }
+            }
+        }
+
+    #else 
+        uint32_t memControllers = config.get<uint32_t>("sys.mem.controllers", 1); 
+        assert(memControllers > 0);
+
+        g_vector<MemObject*> mems;
+        mems.resize(memControllers);
+        string prefix = "sys.mem."
+
+        for (uint32_t i = 0; i < memControllers; i++) {
+            stringstream ss;
+            ss << "mem-" << i;
+            g_string name(ss.str().c_str());
+            //uint32_t domain = nextDomain(); //i*zinfo->numDomains/memControllers;
+            uint32_t domain = i*zinfo->numDomains/memControllers;
+            mems[i] = BuildMemoryController(config, zinfo->lineSize, zinfo->freqMHz, domain, name, prefix);
+        }
+
+        if (memControllers > 1) {
+            bool splitAddrs = config.get<bool>("sys.mem.splitAddrs", true);
+            if (splitAddrs) {
+                MemObject* splitter = new SplitAddrMemory(mems, "mem-splitter");
+                mems.resize(1);
+                mems[0] = splitter;
+            }
+        }
+
+    #endif
 
 
     //Connect everything
@@ -850,7 +943,7 @@ static void InitSystem(Config& config) {
 
 
 
-    //Init stats: caches, mem
+    //Init stats: caches
     for (const char* group : cacheGroupNames) {
         AggregateStat* groupStat = new AggregateStat(true);
         groupStat->init(gm_strdup(group), "Cache stats");
@@ -866,10 +959,17 @@ static void InitSystem(Config& config) {
     for (auto mem : mems) mem->initStats(memStat);
     zinfo->rootStat->append(memStat);
 
+    #ifdef FEATURE_HYBRID_MEM
+    for (const char* group: hybridMemGroupNames) {
+        AggregateStat* groupStat = new AggregateStat(true);
+        groupStat->init(gm_strdup(group), "Main memory stats");
+        zinfo->rootStat->append(groupStat);
+    }
+
+    #endif
     //Odds and ends: BuildCacheGroup new'd the cache groups, we need to delete them
     for (pair<string, CacheGroup*> kv : cMap) delete kv.second;
     cMap.clear();
-    
 
     info("Initialized system");
 }

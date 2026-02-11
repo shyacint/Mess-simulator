@@ -269,7 +269,7 @@ uint64_t DDRMemory::access(MemReq& req) {
             TimingRecord tr = {req.lineAddr, req.cycle, respCycle, req.type, memEv, memEv};
             zinfo->eventRecorders[req.srcId]->pushRecord(tr);
         }
-        //info("Access to %lx at %ld, %ld latency", req.lineAddr, req.cycle, minLatency);
+        info("[DDR] Access to %lx at %ld", req.lineAddr, req.cycle);
         return respCycle;
     }
 }

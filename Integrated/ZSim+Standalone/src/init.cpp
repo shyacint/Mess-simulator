@@ -342,6 +342,23 @@ DDRMemory* BuildDDRMemory(Config& config, uint32_t lineSize, uint32_t frequency,
 }
 
 MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t frequency, uint32_t domain, g_string& name) {
+    
+    vector<const char*> memGroupNames;
+    unordered_map <string, vector<MemObject*>> memMap;
+    config.subgroups("sys.memories", memGroupNames);
+
+    for(const char* group: memGroupNames) {
+
+            memMap[group] = vector<MemObject*>();
+
+            string prefix = string("sys.memories.") + group + ".";
+            string type = config.get<const char*>(prefix + "type", "Simple");
+            uint32_t latency = (type == "DDR")? -1 : config.get<uint32_t>(prefix + "latency", 100);
+
+            MemObject* mem = nullptr;
+
+
+    }
     //Type
     string type = config.get<const char*>("sys.mem.type", "Simple");
 

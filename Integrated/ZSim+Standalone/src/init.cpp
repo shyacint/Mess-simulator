@@ -366,7 +366,7 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
             mem = BuildDDRMemory(config, lineSize, frequency, domain, name, prefix);
         } else if (type == "Mess") {
             double frequencyGHz = ((double)frequency)/1000;
-            string curveAddress = config.get<const char*>(prefix + "curveAddress");
+            string curveAddress = config.get<const char*>(prefix + "curveAddress"); 
             uint32_t curveWindowSize = config.get<uint32_t>(prefix + "curveWindowSize", 1000);
                 // add frequency to third argument
             mem = new WeaveMessMemCtrl(curveAddress, curveWindowSize, frequencyGHz, domain, name);
@@ -954,18 +954,38 @@ static void InitSystem(Config& config) {
     //Initialize event recorders
     //for (uint32_t i = 0; i < zinfo->numCores; i++) eventRecorders[i] = new EventRecorder();
 
-    AggregateStat* memStat = new AggregateStat(true);
-    memStat->init("mem", "Memory controller stats");
-    for (auto mem : mems) mem->initStats(memStat);
-    zinfo->rootStat->append(memStat);
+
 
     #ifdef FEATURE_HYBRID_MEM
-    for (const char* group: hybridMemGroupNames) {
-        AggregateStat* groupStat = new AggregateStat(true);
-        groupStat->init(gm_strdup(group), "Main memory stats");
-        zinfo->rootStat->append(groupStat);
-    }
+        if (hybridMemGroupNames.size() > 1) {
 
+            AggregateStat* ddrStat = new AggregateStat(true);
+            AggregateStat* cxlStat = new AggregateStat(true);
+
+            ddrStat->init("ddr4", "DDR 4 Memory controller stats");
+            cxlStat->init("cxl", "CXL Memory controller stats");
+
+            int i = 0;
+            info("Mems size = %d", mems.size());
+            for (auto mem : mems) {
+                mem->initStats(ddrStat);
+                mem->initStats(cxlStat);
+            }
+            zinfo->rootStat->append(ddrStat);
+            zinfo->rootStat->append(cxlStat);
+        } else {
+            AggregateStat* memStat = new AggregateStat(true);
+            memStat->init("mem", "Memory controller stats");
+            for (auto mem : mems) mem->initStats(memStat);
+            zinfo->rootStat->append(memStat);
+        }
+
+
+    #else
+        AggregateStat* memStat = new AggregateStat(true);
+        memStat->init("mem", "Memory controller stats");
+        for (auto mem : mems) mem->initStats(memStat);
+        zinfo->rootStat->append(memStat);
     #endif
     //Odds and ends: BuildCacheGroup new'd the cache groups, we need to delete them
     for (pair<string, CacheGroup*> kv : cMap) delete kv.second;

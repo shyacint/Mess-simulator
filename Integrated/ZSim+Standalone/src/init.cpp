@@ -631,7 +631,7 @@ static void InitSystem(Config& config) {
 
             g_vector<MemObject*> mems;
             mems.resize(memControllers);
-            string prefix = "sys.mem.";
+            string prefix = string("sys.mem.");
 
             for (uint32_t i = 0; i < memControllers; i++) {
                 stringstream ss;
@@ -658,7 +658,7 @@ static void InitSystem(Config& config) {
 
         g_vector<MemObject*> mems;
         mems.resize(memControllers);
-        string prefix = "sys.mem."
+        prefix = string("sys.mem.");
 
         for (uint32_t i = 0; i < memControllers; i++) {
             stringstream ss;
@@ -951,28 +951,14 @@ static void InitSystem(Config& config) {
         zinfo->rootStat->append(groupStat);
     }
 
-    //Initialize event recorders
-    //for (uint32_t i = 0; i < zinfo->numCores; i++) eventRecorders[i] = new EventRecorder();
-
-
 
     #ifdef FEATURE_HYBRID_MEM
         if (hybridMemGroupNames.size() > 1) {
-
-            AggregateStat* ddrStat = new AggregateStat(true);
-            AggregateStat* cxlStat = new AggregateStat(true);
-
-            ddrStat->init("ddr4", "DDR 4 Memory controller stats");
-            cxlStat->init("cxl", "CXL Memory controller stats");
-
-            int i = 0;
             info("Mems size = %d", mems.size());
-            for (auto mem : mems) {
-                mem->initStats(ddrStat);
-                mem->initStats(cxlStat);
-            }
-            zinfo->rootStat->append(ddrStat);
-            zinfo->rootStat->append(cxlStat);
+            AggregateStat* memStat = new AggregateStat(false);
+            memStat->init("hybrid-mem", "Memory controller stats");
+            for (auto mem : mems) mem->initStats(memStat);
+            zinfo->rootStat->append(memStat);
         } else {
             AggregateStat* memStat = new AggregateStat(true);
             memStat->init("mem", "Memory controller stats");

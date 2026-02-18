@@ -1,6 +1,5 @@
 pin-2.14-71313-gcc.4.4.7-linux/
 build/
 venv/
-.sconsign.dblite
 runs.*
-.sconsign.dblite
+Integrated/ZSim+Standalone/.sconsign.dblite

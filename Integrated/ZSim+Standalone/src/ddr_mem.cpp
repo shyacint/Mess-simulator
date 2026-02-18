@@ -229,6 +229,9 @@ DDRMemory::DDRMemory(uint32_t _lineSize, uint32_t _colSize, uint32_t _ranksPerCh
 void DDRMemory::initStats(AggregateStat* parentStat) {
     AggregateStat* memStats = new AggregateStat();
     memStats->init(name.c_str(), "Memory controller stats");
+    #ifdef FEATURE_HYBRID_MEM
+        channelAccesses.init("accesses", "Total memory accesses for channel/controller"); memStats->append(&channelAccesses);
+    #endif
     profReads.init("rd", "Read requests"); memStats->append(&profReads);
     profWrites.init("wr", "Write requests"); memStats->append(&profWrites);
     profTotalRdLat.init("rdlat", "Total latency experienced by read requests"); memStats->append(&profTotalRdLat);
@@ -270,7 +273,10 @@ uint64_t DDRMemory::access(MemReq& req) {
             zinfo->eventRecorders[req.srcId]->pushRecord(tr);
         }
         info("[DDR] Access to %lx at %ld", req.lineAddr, req.cycle);
-        return respCycle;
+        #ifdef FEATURE_HYBRID_MEM
+            channelAccesses.inc();
+        #endif
+            return respCycle;
     }
 }
 

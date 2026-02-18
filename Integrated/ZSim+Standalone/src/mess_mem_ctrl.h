@@ -131,6 +131,9 @@ private:
     PAD();
 
     // profiling counters
+    #ifdef FEATURE_HYBRID_MEM
+        Counter channelAccesses;
+    #endif
     Counter profReads;
     Counter profWrites;
     Counter profTotalRdLat;
@@ -219,6 +222,8 @@ public:
     void initStats(AggregateStat *parentStat);
 
     const char *getName() { return name.c_str(); }
+
+    void accessesInc() { channelAccesses.inc();};
 
 };
 

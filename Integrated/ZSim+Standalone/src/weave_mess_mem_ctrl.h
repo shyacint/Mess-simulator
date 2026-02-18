@@ -68,8 +68,7 @@ class WeaveMessMemCtrl : public MessMemCtrl {
                 TimingRecord tr = {req.lineAddr, req.cycle, respCycle, req.type, memEv, memEv};
                 zinfo->eventRecorders[req.srcId]->pushRecord(tr);
             }
-
-            info("[CXL] Access to %lx at %ld, %d lat, returning %d", req.lineAddr, req.cycle, realLatency, zeroLoadLatency);
+            info("[MESS] Access to %lx at %ld, %d lat, returning %d", req.lineAddr, req.cycle, realLatency, zeroLoadLatency);          
             return respCycle;
         }
 };

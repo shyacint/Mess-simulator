@@ -80,7 +80,7 @@ if [[ ! -z "$DRAMSIM3PATH" && ! -z "$PINPATH" ]]; then
     echo "  PINPATH=$PINPATH"
     
     scons -c
-    scons -j$(nproc)
+    scons -j$(nproc) FEATURE_HYBRID_MEM=1
 else
     echo "ERROR: Missing dependencies:"
     echo "  DRAMSIM3PATH=$DRAMSIM3PATH"

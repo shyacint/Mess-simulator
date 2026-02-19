@@ -222,9 +222,6 @@ public:
     void initStats(AggregateStat *parentStat);
 
     const char *getName() { return name.c_str(); }
-
-    void accessesInc() { channelAccesses.inc();};
-
 };
 
 #endif  // MESS_MEM_CTRL_H_

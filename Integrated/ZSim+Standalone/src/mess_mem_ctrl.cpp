@@ -429,7 +429,9 @@ uint64_t MessMemCtrl::GetQsMemLoadCycleLimit() {
 void MessMemCtrl::initStats(AggregateStat *parentStat) {
     AggregateStat* memStats = new AggregateStat();
     memStats->init(name.c_str(), "Memory controller stats");
-    channelAccesses.init("accesses", "Total memory accesses for channel/controller"); memStats->append(&channelAccesses);
+    #ifdef FEATURE_HYBRID_MEM
+        channelAccesses.init("accesses", "Total memory accesses for channel/controller"); memStats->append(&channelAccesses);
+    #endif
     profReads.init("rd", "Read requests"); memStats->append(&profReads);
     profWrites.init("wr", "Write requests"); memStats->append(&profWrites);
     profTotalRdLat.init("rdlat", "Total latency experienced by read requests"); memStats->append(&profTotalRdLat);

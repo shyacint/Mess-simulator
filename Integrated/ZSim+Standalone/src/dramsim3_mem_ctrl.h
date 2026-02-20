@@ -28,6 +28,7 @@
 
 #include <functional>
 #include <map>
+#include <unordered_map>
 #include <string>
 #include "g_std/g_string.h"
 #include "g_std/g_unordered_map.h"
@@ -126,6 +127,11 @@ class SplitAddrMemory : public MemObject
     const g_vector<MemObject *> mems;
     const g_string name;
 
+    #ifdef FEATURE_CXL_MEM
+        std::unordered_map<uint64_t, bool> allocated_pages;
+    #endif
+
+
   public:
     SplitAddrMemory(const g_vector<MemObject *> &_mems, const char *_name) : mems(_mems), name(_name) {}
 
@@ -171,7 +177,16 @@ class SplitAddrMemory : public MemObject
     uint64_t access(MemReq &req)
     {
         Address addr = req.lineAddr;
-        uint32_t mem = addr % mems.size();
+        uint32_t mem_pg = addr >> 12;
+
+        uint32_t mem;
+        if (allocated_pages.count(mem_pg)) {
+            mem = allocated_pages[mem_pg] ? (4 + (addr % 4)) : (addr % 4);
+        } else {
+            mem = addr % mems.size();
+            allocated_pages[mem_pg] = (mem >= 4);
+        }
+
         Address ctrlAddr = addr / mems.size();
         req.lineAddr = ctrlAddr;
         uint64_t respCycle = mems[mem]->access(req);

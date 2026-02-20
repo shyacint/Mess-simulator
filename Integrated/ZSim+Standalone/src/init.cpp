@@ -579,7 +579,6 @@ static void InitSystem(Config& config) {
                 memControllers += config.get<uint32_t>(prefix + "controllers", 1); 
             }
 
-            mems.resize(memControllers);
             uint32_t numBuiltControllers = 0;
 
             for (const char* group: memGroupNames) {
@@ -599,14 +598,14 @@ static void InitSystem(Config& config) {
             assert(memControllers >= 2);
             
             if (memControllers > 1) {
-                    bool splitAddrs = config.get<bool>("sys.mem.splitAddrs", true);
-                    if (splitAddrs) {
-                        MemObject* splitter = new SplitAddrMemory(mems, "mem-splitter");
-                        mems.resize(1);
-                        mems[0] = splitter;
+                bool splitAddrs = config.get<bool>("sys.mem.splitAddrs", true);
+                if (splitAddrs) {
+                    MemObject* splitter = new SplitAddrMemory(mems, "mem-splitter");
+                    mems.resize(1);
+                    mems[0] = splitter;
                 }
             }
-
+            info("here");
         } else {
             //TODO: replace this ifdef else logic
         }
@@ -914,10 +913,17 @@ static void InitSystem(Config& config) {
     //Initialize event recorders
     //for (uint32_t i = 0; i < zinfo->numCores; i++) eventRecorders[i] = new EventRecorder();
 
-    AggregateStat* memStat = new AggregateStat(true);
-    memStat->init("mem", "Memory controller stats");
-    for (auto mem : mems) mem->initStats(memStat);
-    zinfo->rootStat->append(memStat);
+    #ifdef FEATURE_CXL_MEM
+        AggregateStat* memStat = new AggregateStat(false);
+        memStat->init("mem", "Memory controller stats");
+        for (auto mem : mems) mem->initStats(memStat);
+        zinfo->rootStat->append(memStat);
+    #else
+        AggregateStat* memStat = new AggregateStat(true);
+        memStat->init("mem", "Memory controller stats");
+        for (auto mem : mems) mem->initStats(memStat);
+        zinfo->rootStat->append(memStat);
+    #endif
 
     //Odds and ends: BuildCacheGroup new'd the cache groups, we need to delete them
     for (pair<string, CacheGroup*> kv : cMap) delete kv.second;

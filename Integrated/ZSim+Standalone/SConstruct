@@ -15,7 +15,7 @@ def buildSim(cppFlags, dir, type, pgo=None):
 
     feature_cxl_mem = int(ARGUMENTS.get('FEATURE_CXL_MEM', '0'))
     if feature_cxl_mem == 1:
-        env.append(CPPDEFINES=['FEATURE_CXL_MEM'])
+        env.Append(CPPDEFINES=['FEATURE_CXL_MEM'])
 
     allSrcs = [f for dir, subdirs, files in os.walk("src") for f in Glob(dir + "/*")]
     versionFile = joinpath(buildDir, "version.h")

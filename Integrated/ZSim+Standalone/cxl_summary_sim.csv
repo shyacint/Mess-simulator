@@ -1,0 +1,63 @@
+benchmark,variant,input,instructions,cycles,exec-time(s),l1i-miss-ratio,l1d-miss-ratio,llc-miss-ratio,ipc
+00_dna,serial,koala,69747371077,39355796918,4470.01,0.0,0.01,0.73,1.5956
+00_dna,parallel,koala,70214680153,42114722931,6200.32,0.0,0.01,2.75,1.5139
+01_pass_gen,serial,koala,32709711626,15327406328,2245.33,0.0,0.0,552.19,2.1345
+01_pass_gen,parallel,koala,83870752773,89774406053,Timeout too low,0.0,0.02,0.08,0.9347
+02_integral,serial,koala,100000000240,64728005146,Timeout too low,0.0,0.0,,1.6449
+02_integral,parallel,koala,100000000518,72232705389,Timeout too low,0.0,0.0,39736.45,1.4168
+03_text_search,serial,koala,6205080,6076282,2.0482,0.0,0.02,1.26,1.1768
+03_text_search,parallel,koala,8412871,8379314,4.34032,0.01,0.02,0.75,1.029
+04_wordcount,serial,koala,46959955,43032112,5.62571,0.0,0.02,0.2,1.0173
+04_wordcount,parallel,koala,74949222,65321036,9.04391,0.0,0.01,0.15,1.1084
+05_grayscale_convert,serial,koala,276434835,192051063,32.6741,0.0,0.01,0.55,1.67
+05_grayscale_convert,parallel,koala,1234079744,1348596118,2178.13,0.0,0.0,0.18,0.9035
+06_edge_detection,serial,koala,344463473,256511961,42.6129,0.01,0.01,0.36,1.4716
+06_edge_detection,parallel,koala,372324494,290951920,53.2826,0.01,0.01,0.26,1.3568
+07_huffman_compression,serial,koala,60128272,51260014,6.40447,0.0,0.0,0.86,1.2279
+07_huffman_compression,parallel,koala,104009271,218748646,57.1115,0.0,0.06,0.03,0.5585
+08_lzw_compression,serial,koala,298564190,313171081,29.2276,0.0,0.02,0.05,0.9356
+08_lzw_compression,parallel,koala,298563959,313264112,29.1605,0.0,0.02,0.05,0.9354
+09_btree,serial,koala,100000000342,116168668001,Timeout too low,0.0,0.07,0.0,0.8475
+09_btree,parallel,koala,100000002900,119003003372,Timeout too low,0.0,0.07,0.0,0.827
+10_web_search,serial,koala,3720907,4209173,1.79817,0.0,0.01,5.06,1.0311
+10_web_search,parallel,koala,4436661,5075091,3.77576,0.01,0.02,1.03,0.947
+11_convex_hull,serial,koala,100000000920,69591264007,Timeout too low,0.0,0.03,0.5,1.8098
+11_convex_hull,parallel,koala,100000004578,155123053075,Timeout too low,0.0,0.06,0.04,0.6383
+12_knn,serial,koala,21670008433,15960074074,1561.27,0.0,0.0,0.23,1.3527
+12_knn,parallel,koala,21499295879,16530050815,626.579,0.0,0.0,0.02,1.2945
+13_svm,serial,koala,35213039861,22141242094,2517.85,0.0,0.05,0.0,1.5269
+13_svm,parallel,koala,35215827778,22134027082,2478.97,0.0,0.05,0.0,1.5274
+14_mem_allocator,serial,koala,1662252386,12742527156,5.47925,0.0,0.61,0.0,0.1116
+14_mem_allocator,parallel,koala,1662252271,12742426051,5.4792,0.0,0.61,0.0,0.1116
+15_pathfinding,serial,koala,100000001205,61612348004,Timeout too low,0.0,0.01,0.04,1.6473
+15_pathfinding,parallel,koala,100000001439,61010147002,Timeout too low,0.0,0.01,0.04,1.664
+16_genai,serial,koala,63840043433,49758372072,4415.14,0.0,0.13,0.0,1.283
+16_genai,parallel,koala,63848730005,49857952475,1940.93,0.0,0.13,0.0,1.2806
+17_mapreduce,serial,koala,100000000874,107418452002,Timeout too low,0.0,0.03,1.02,0.7423
+17_mapreduce,parallel,koala,0,0,Timeout too low,1.0,1.0,1.0,1.0
+21_krey,serial,koala,100000000737,35122791003,Timeout too low,0.0,0.0,,2.8621
+21_krey,parallel,koala,100000002550,35095647004,Timeout too low,0.0,0.0,,2.8643
+23_wasm,serial,koala,10371623263,4962824178,927.203,0.0,0.0,0.0,2.1038
+23_wasm,parallel,koala,10377031381,5997217593,716.146,0.0,0.0,268.35,1.5724
+24_ospo,serial,koala,3270480184,2730513298,353.948,0.0,0.02,0.05,1.074
+24_ospo,parallel,koala,3418438583,3067953403,254.325,0.0,0.01,0.16,1.0637
+25_anomaly_detection,serial,koala,100000000418,51717913004,Timeout too low,0.0,0.22,0.0,1.9281
+25_anomaly_detection,parallel,koala,100000001001,51735204003,Timeout too low,0.0,0.22,0.0,1.9275
+26_qlearn,serial,koala,100000000699,58659408001,Timeout too low,0.0,0.0,0.0,1.7048
+26_qlearn,parallel,koala,100000002988,55846230642,Timeout too low,0.0,0.0,,1.7907
+27_carbon,serial,koala,100000000849,70535986054,Timeout too low,0.0,0.0,26.4,1.2912
+27_carbon,parallel,koala,100000015409,69534410309,Timeout too low,0.0,0.0,81.42,1.3802
+28_federated,serial,koala,100000000424,50298917059,Sim Time out,0.0,0.06,0.0,1.9776
+28_federated,parallel,koala,0,0,Sim Time out,,,,
+30_syntax_parsing,serial,koala,100000000860,43732437003,Timeout too low,0.0,0.0,0.0,2.2869
+30_syntax_parsing,parallel,koala,100000026502,43711224993,Timeout too low,0.0,0.0,0.25,2.2887
+31_bayesian,serial,koala,100000000746,56268305118,Timeout too low,0.0,0.0,266.84,1.7733
+31_bayesian,parallel,koala,100000007404,56473727524,Timeout too low,0.0,0.0,294.78,1.7669
+32_neuro_symbolic,serial,koala,100000000622,96965653198,Timeout too low,0.0,0.04,1.1,1.0089
+32_neuro_symbolic,parallel,koala,100000016929,69523365394,Timeout too low,0.0,0.04,0.04,1.4267
+33_finops,serial,koala,100000002004,55831402010,Timeout too low,0.0,0.0,0.8,1.7778
+33_finops,parallel,koala,100000020189,56790338080,Timeout too low,0.0,0.0,8.13,1.7498
+34_k8s_scheduler,serial,koala,100000000966,42259706004,Timeout too low,0.0,0.0,,2.7588
+34_k8s_scheduler,parallel,koala,16507372029,11994301229,Timeout too low,0.0,0.11,2695390.26,0.9563
+35_gitops,serial,koala,74622802996,51376451027,7608.83,0.0,0.06,0.0,1.4549
+35_gitops,parallel,koala,80956434801,68440221050,5176.04,0.0,0.06,0.0,1.178

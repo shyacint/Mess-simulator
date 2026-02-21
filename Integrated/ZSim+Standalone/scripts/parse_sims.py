@@ -116,52 +116,81 @@ def extract_stats_from_h5(h5_path, freq_ghz):
             total_cycles = dset[-1][CORE_CFG_NAME]['cycles'].sum()
             total_insts = dset[-1][CORE_CFG_NAME]['instrs'].sum() 
             
-            # Execution time
-            if freq_ghz > 0 and total_cycles > 0:
-                exec_time_s = round(dset[-1][CORE_CFG_NAME]['cycles'].max() / (freq_ghz * 1e9), 6)
-            else:
-                exec_time_s = np.nan
-            
             cache_ratios = {}
             
             for cache in ['l1i', 'l1d', 'l2', 'l3']:
-                # All read operations (loads)
                 read_hits = samp_final[cache]['hGETS'].sum() - samp_start[cache]['hGETS'].sum()
                 read_misses = samp_final[cache]['mGETS'].sum() - samp_start[cache]['mGETS'].sum()
                 
-                # All write operations (stores)
                 write_hits = samp_final[cache]['hGETX'].sum() - samp_start[cache]['hGETX'].sum()
                 write_misses = (samp_final[cache]['mGETXIM'].sum() - samp_start[cache]['mGETXIM'].sum() +
                                 samp_final[cache]['mGETXSM'].sum() - samp_start[cache]['mGETXSM'].sum())
                 
-                cache_hits = read_hits     #+ write_hits
-                cache_misses = read_misses #+ write_misses 
-                
+                cache_hits = read_hits + write_hits
+                cache_misses = read_misses + write_misses
+
                 if 'l1' in cache:
-                    cache_hits +=  (samp_final[cache]['fhGETS'].sum() - samp_start[cache]['fhGETS'].sum()) + (samp_final[cache]['fhGETX'].sum() - samp_start[cache]['fhGETX'].sum())
-                  
-                
-                if cache_hits > 0:
-                    cache_ratios[cache] = round( cache_misses / (cache_hits), 2)
+                    cache_hits += (samp_final[cache]['fhGETS'].sum() - samp_start[cache]['fhGETS'].sum()) + \
+                                (samp_final[cache]['fhGETX'].sum() - samp_start[cache]['fhGETX'].sum())
+
+                # DEBUG
+                print(f"\n{cache}:")
+                print(f"  read_hits={read_hits}, read_misses={read_misses}")
+                print(f"  write_hits={write_hits}, write_misses={write_misses}")
+                print(f"  cache_hits={cache_hits}, cache_misses={cache_misses}")
+
+                total_accesses = cache_hits + cache_misses
+                if total_accesses > 0:
+                    cache_ratios[cache] = round(cache_misses / total_accesses, 2)
                 else:
                     cache_ratios[cache] = np.nan
-                    
+                
+            if cache_hits > 0:
+                cache_ratios[cache] = round( cache_misses / (cache_hits), 2)
+            else:
+                cache_ratios[cache] = np.nan
+                                
             for key, value in cache_ratios.items():
                 print(f"{key}: {value}")
             
-            print(exec_time_s)
             return {
-                'exec_time_s': exec_time_s,
                 'instructions': total_insts,
                 'cycles': total_cycles,
-                'L1i-miss-ratio': cache_ratios['l1i'],
-                'L1d-miss-ratio': cache_ratios['l1d'],
-                'LLC-miss-ratio': cache_ratios['l3'],
+                'l1i-miss-ratio': cache_ratios['l1i'],
+                'l1d-miss-ratio': cache_ratios['l1d'],
+                'llc-miss-ratio': cache_ratios['l3'],
                 'ipc': ipc,
             }
 
     except Exception as e:
         print(f"Error reading {h5_path}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def extract_time_from_log(log_path):
+    EXECUTION_TIME_PATTERN = r"Execution time:\s*(\d+\.?\d*)"
+    ROI_START_STRING = "[HOOKS] ROI begin"
+    COLUMN_NAME = "exec-time(s)"
+
+    try:
+
+        with open(log_path, 'r', encoding='utf-8', errors='replace') as log_file:
+            log_content = log_file.read()
+
+            if ROI_START_STRING not in log_content:
+                return {COLUMN_NAME: "Timeout too low"}
+
+            match = re.search(EXECUTION_TIME_PATTERN, log_content)
+            
+            if match:
+                return {COLUMN_NAME: float(match.group(1))}
+            else:
+                return {COLUMN_NAME: "Sim Time out"}
+
+    except Exception as e:
+        print(f"Error reading {log_path}: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -187,6 +216,7 @@ def collect_all_stats(input_dir, freq_ghz):
     
     for app_dir in app_dirs:
         h5_file = app_dir / "zsim.h5"
+        log_file = app_dir / "log.txt"
         
         if not h5_file.exists():
             print(f"Warning: {h5_file} not found, skipping {app_dir.name}")
@@ -202,13 +232,15 @@ def collect_all_stats(input_dir, freq_ghz):
         print(f"  Parsed as: benchmark={benchmark}, variant={variant}, input={input_size}")
         
         stats = extract_stats_from_h5(h5_file, freq_ghz)
+        time_stats = extract_time_from_log(log_file)
         
         if stats:
             results.append({
                 'benchmark': benchmark,
                 'variant': variant,
                 'input': input_size,
-                **stats
+                **stats,
+                **(time_stats if time_stats is not None else {'exec-time(s)': 'ERROR'}),
             })
             print(f"  [OK] IPC: {stats['ipc']}, Instructions: {stats['instructions']}")
         else:
@@ -254,8 +286,8 @@ def main():
     # Enforce column ordering
     desired_columns = [
         'benchmark', 'variant', 'input',
-        'instructions', 'cycles', 'L1i-miss-ratio', 
-        'L1d-miss-ratio', 'LLC-miss-ratio', 'ipc'
+        'instructions', 'cycles', 'exec-time(s)','l1i-miss-ratio', 
+        'l1d-miss-ratio', 'llc-miss-ratio', 'ipc'
     ]
     
     df = df[desired_columns]

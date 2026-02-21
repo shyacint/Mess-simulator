@@ -229,6 +229,9 @@ DDRMemory::DDRMemory(uint32_t _lineSize, uint32_t _colSize, uint32_t _ranksPerCh
 void DDRMemory::initStats(AggregateStat* parentStat) {
     AggregateStat* memStats = new AggregateStat();
     memStats->init(name.c_str(), "Memory controller stats");
+    #ifdef FEATURE_CXL_MEM
+        ctrlAccesses.init("acs", "Controller accesses"); memStats->append(&ctrlAccesses);
+    #endif
     profReads.init("rd", "Read requests"); memStats->append(&profReads);
     profWrites.init("wr", "Write requests"); memStats->append(&profWrites);
     profTotalRdLat.init("rdlat", "Total latency experienced by read requests"); memStats->append(&profTotalRdLat);
@@ -269,7 +272,10 @@ uint64_t DDRMemory::access(MemReq& req) {
             TimingRecord tr = {req.lineAddr, req.cycle, respCycle, req.type, memEv, memEv};
             zinfo->eventRecorders[req.srcId]->pushRecord(tr);
         }
-        info("[DDR] Access to %lx at %ld", req.lineAddr, req.cycle);
+        //info("[DDR] Access to %lx at %ld", req.lineAddr, req.cycle);
+        #ifdef FEATURE_CXL_MEM
+            ctrlAccesses.inc();
+        #endif
         return respCycle;
     }
 }

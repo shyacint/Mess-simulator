@@ -234,6 +234,9 @@ class DDRMemory : public MemObject {
 
         // R/W stats
         PAD();
+        #ifdef FEATURE_CXL_MEM
+            Counter ctrlAccesses;
+        #endif
         Counter profReads, profWrites;
         Counter profTotalRdLat, profTotalWrLat;
         Counter profReadHits, profWriteHits;  // row buffer hits

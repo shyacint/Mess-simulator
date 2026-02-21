@@ -69,7 +69,7 @@ class WeaveMessMemCtrl : public MessMemCtrl {
                 zinfo->eventRecorders[req.srcId]->pushRecord(tr);
             }
 
-            info("[CXL] Access to %lx at %ld, %d lat, returning %d", req.lineAddr, req.cycle, realLatency, zeroLoadLatency);
+            //info("[CXL] Access to %lx at %ld, %d lat, returning %d", req.lineAddr, req.cycle, realLatency, zeroLoadLatency);
             return respCycle;
         }
 };

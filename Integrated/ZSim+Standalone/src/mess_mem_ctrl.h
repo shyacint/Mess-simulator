@@ -131,6 +131,9 @@ private:
     PAD();
 
     // profiling counters
+    #ifdef FEATURE_CXL_MEM
+        Counter ctrlAccesses;
+    #endif
     Counter profReads;
     Counter profWrites;
     Counter profTotalRdLat;

@@ -177,15 +177,18 @@ class SplitAddrMemory : public MemObject
     uint64_t access(MemReq &req)
     {
         Address addr = req.lineAddr;
-        uint32_t mem_pg = addr >> 12;
-
         uint32_t mem;
-        if (allocated_pages.count(mem_pg)) {
-            mem = allocated_pages[mem_pg] ? (4 + (addr % 4)) : (addr % 4);
-        } else {
-            mem = addr % mems.size();
-            allocated_pages[mem_pg] = (mem >= 4);
-        }
+
+        #ifdef FEATURE_CXL_MEM
+            uint32_t mem_pg = addr >> 12;
+
+            if (allocated_pages.count(mem_pg)) {
+                mem = allocated_pages[mem_pg] ? (4 + (addr % 4)) : (addr % 4);
+            } else {
+                mem = addr % mems.size();
+                allocated_pages[mem_pg] = (mem >= 4);
+            }
+        #endif
 
         Address ctrlAddr = addr / mems.size();
         req.lineAddr = ctrlAddr;

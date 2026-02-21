@@ -397,6 +397,9 @@ uint64_t MessMemCtrl::access(MemReq &req) {
 
     
     // Return the latency in cycles (CPU frequency)
+    #ifdef FEATURE_CXL_MEM
+        ctrlAccesses.inc();
+    #endif
     return respCycle;
 
 }
@@ -426,6 +429,9 @@ uint64_t MessMemCtrl::GetQsMemLoadCycleLimit() {
 void MessMemCtrl::initStats(AggregateStat *parentStat) {
     AggregateStat* memStats = new AggregateStat();
     memStats->init(name.c_str(), "Memory controller stats");
+    #ifdef FEATURE_CXL_MEM
+        ctrlAccesses.init("acs","Controller accesses"); memStats->append(&ctrlAccesses);
+    #endif
     profReads.init("rd", "Read requests"); memStats->append(&profReads);
     profWrites.init("wr", "Write requests"); memStats->append(&profWrites);
     profTotalRdLat.init("rdlat", "Total latency experienced by read requests"); memStats->append(&profTotalRdLat);
